@@ -13,7 +13,7 @@ Tài liệu này định nghĩa các quy tắc bắt buộc đối với tất c
   - Backend: Tuân thủ PEP 8, dùng Type Hinting cho Python 3.12.
   - Frontend: Composition API cho Vue 3, định nghĩa rõ ràng Props và Emits.
   - Luôn ưu tiên viết code dễ bảo trì hơn là code ngắn gọn.
-- **Comment giáo dục**: Trước mỗi file, hàm đều thêm một comment giải thích ngắn gọn các câu hỏi: What, Why, How
+- **Comment giáo dục**: Trước mỗi file, hàm đều thêm một comment giải thích ngắn gọn các câu hỏi bằng tiếng Việt: What, Why, How
 
 ## ⚙️ Thông số nghiệp vụ (Business Logic)
 - **API Limits**: Giới hạn tần suất gọi API bên thứ ba (CoinGecko) là **15 lần/phút**. Hãy triển khai cơ chế cache hoặc scheduler phù hợp

@@ -5,7 +5,7 @@
       "description": "Chuyên gia Flask, SQLAlchemy và PostgreSQL. Xử lý logic nghiệp vụ và API.",
       "mode": "primary",
       "prompt": "{file:prompts/backend-dev.txt}",
-      "steps": 10,
+      "steps": 15,
       "permission": {
         "edit": "allow",
         "bash": {
@@ -19,7 +19,7 @@
       "description": "Chuyên gia Vue 3, Vite và TradingView Charts. Xử lý giao diện UI/UX.",
       "mode": "primary",
       "prompt": "{file:prompts/frontend-dev.txt}",
-      "steps": 10,
+      "steps": 15,
       "permission": {
         "edit": "allow",
         "bash": {

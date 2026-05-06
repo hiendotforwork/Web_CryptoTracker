@@ -228,7 +228,5 @@ pip-selfcheck.json
 .github/
 .opencode/node_modules/
 node_modules/
-doanchat.txt
-frontend/node_modules/
-frontend/.env
-PLAN.md
+lenh-can-ghi-nho.txt
+frontend/frontend/
