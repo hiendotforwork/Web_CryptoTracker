@@ -1,0 +1,56 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "agent": {
+    "backend-dev": {
+      "description": "Chuyên gia Flask, SQLAlchemy và PostgreSQL. Xử lý logic nghiệp vụ và API.",
+      "mode": "primary",
+      "prompt": "{file:prompts/backend-dev.txt}",
+      "steps": 10,
+      "permission": {
+        "edit": "allow",
+        "bash": {
+          "*": "ask",
+          "flask run": "allow",
+          "pip install *": "ask"
+        }
+      }
+    },
+    "frontend-dev": {
+      "description": "Chuyên gia Vue 3, Vite và TradingView Charts. Xử lý giao diện UI/UX.",
+      "mode": "primary",
+      "prompt": "{file:prompts/frontend-dev.txt}",
+      "steps": 10,
+      "permission": {
+        "edit": "allow",
+        "bash": {
+          "*": "ask",
+          "pnpm dev": "allow",
+          "pnpm install *": "ask"
+        }
+      }
+    },
+    "tester": {
+      "description": "Agent chuyên viết và chạy test case (Pytest & Vitest).",
+      "mode": "subagent",
+      "prompt": "{file:prompts/tester.txt}",
+      "permission": {
+        "edit": "allow",
+        "bash": {
+          "pytest": "allow",
+          "pnpm test": "allow",
+          "*": "ask"
+        }
+      }
+    },
+    "security-guard": {
+      "description": "Rà soát lỗi bảo mật (OWASP), kiểm tra cú pháp và an toàn mã nguồn.",
+      "mode": "subagent",
+      "temperature": 0.1,
+      "prompt": "{file:prompts/security-guard.txt}",
+      "permission": {
+        "edit": "deny",
+        "bash": "ask"
+      }
+    }
+}
+}
