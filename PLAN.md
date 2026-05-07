@@ -4,36 +4,6 @@
 > **Môi trường**: Python 3.12.3 | Node v22.22.2 | PostgreSQL local (dev) → Railway (prod)
 > **Package Manager**: `pnpm` (frontend) | `pip` trong `.venv` (backend)
 > **Testing**: Manual + Unit test cơ bản (pytest, vitest)
-
----
-
-## 📐 Tiêu chuẩn Chất lượng Mã nguồn (Áp dụng cho mọi Task)
-
-> AI phải đảm bảo các tiêu chuẩn này khi sinh mã trong **tất cả** các task.
-
-### Backend (Python / Flask)
-- **Naming**: snake_case cho biến/hàm, PascalCase cho class
-- **Docstring**: Mỗi function/class phải có docstring ngắn mô tả chức năng
-- **Type hint**: Khuyến khích dùng type hints cho tham số và return value
-- **Error handling**: Mọi đoạn gọi DB hoặc external API đều phải có `try/except`, không để lỗi crash server
-- **HTTP status code**: Dùng đúng mã (200, 201, 400, 401, 404, 409, 503), không dùng 200 cho lỗi
-- **Response format nhất quán**:
-  - Thành công: `{"data": ..., "message": "..."}` hoặc `{"coins": [...], "page": 1}`
-  - Lỗi: `{"error": "Mô tả lỗi rõ ràng"}`
-- **Không hardcode**: Dùng biến môi trường (`.env`) cho SECRET_KEY, DATABASE_URL, API keys
-- **Không commit secret**: File `.env` phải có trong `.gitignore`
-- **Blueprint tách module**: Mỗi nhóm route là 1 Blueprint riêng biệt
-
-### Frontend (Vue 3 / JavaScript)
-- **Naming**: camelCase cho biến/hàm, PascalCase cho component
-- **Component tách nhỏ**: Mỗi component chỉ làm 1 việc (Single Responsibility)
-- **Props validation**: Mọi prop đều phải khai báo kiểu dữ liệu (`type`, `required`, `default`)
-- **Composition API**: Dùng `<script setup>` thay vì Options API
-- **Xử lý loading/error**: Mọi API call phải có state `isLoading` và hiển thị lỗi ra UI
-- **Không gọi API trực tiếp trong component**: Đặt tất cả API call trong `stores/` hoặc `services/api.js`
-- **CSS**: Dùng CSS variables (`:root`) cho màu sắc, không hardcode màu trong component
-- **Accessibility cơ bản**: Các button phải có `aria-label`, `<img>` phải có `alt`
-
 ---
 
 ## Giai đoạn 1: Khởi tạo Dự án & Cấu hình Môi trường

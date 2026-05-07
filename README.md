@@ -1,4 +1,4 @@
-# 🪙 Crypto Tracker - Tài liệu Cấu trúc Dự án (Cập nhật Schema)
+# 🪙 Crypto Tracker - Tài liệu Cấu trúc Dự án
 
 Dự án xây dựng hệ thống theo dõi thị trường tiền điện tử, cập nhật tin tức tự động và quản lý danh sách theo dõi cá nhân.
 
@@ -10,6 +10,7 @@ Dự án xây dựng hệ thống theo dõi thị trường tiền điện tử,
 | ----------------- | ---------------------------------------------------- | --------------------------------------------------- |
 | Backend           | Flask                                                | Framework chính, xử lý Logic và Routes              |
 | Database          | PostgreSQL (Railway)                                 | Tích hợp sẵn trên Railway                           |
+| ORM               | Flask-SQLAlchemy                                     | Truy vấn database qua Object Python                 |
 | Frontend          | Vue 3 + Vite                                         | Component hóa, quản lý state tốt hơn JS thuần       |
 | Biểu đồ           | TradingView Lightweight Charts                       | Chuyên biệt cho crypto/finance, trực quan           |
 | Tác vụ ngầm       | APScheduler                                          | Cập nhật dữ liệu mỗi 15-30 phút                     |
