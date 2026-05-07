@@ -230,3 +230,5 @@ pip-selfcheck.json
 node_modules/
 lenh-can-ghi-nho.txt
 frontend/frontend/
+skills-lock.json
+#.agents/
