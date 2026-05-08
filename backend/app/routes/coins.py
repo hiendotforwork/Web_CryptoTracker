@@ -122,7 +122,8 @@ def get_coin_detail(coin_id: str):
         if coin_data:
             coin = _upsert_coin(coin_data)
         else:
-            return jsonify({"error": f"Không tìm thấy coin: {coin_id}"}), 404
+            # Trả 503 khi external API không phản hồi (không phải 404)
+            return jsonify({"error": "Không thể lấy dữ liệu từ API"}), 503
 
     return jsonify({"coin": coin.to_dict()})
 
