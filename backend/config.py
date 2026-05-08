@@ -71,6 +71,10 @@ class TestingConfig(Config):
     # Tắt scheduler trong môi trường test
     SCHEDULER_API_ENABLED: bool = False
 
+    # JWT_SECRET_KEY cho testing (test secret key)
+    JWT_SECRET_KEY: str = "test-secret-key-for-testing-only"
+    SECRET_KEY: str = "test-secret-key-for-testing-only"
+
 
 class ProductionConfig(Config):
     """Cấu hình môi trường production."""
