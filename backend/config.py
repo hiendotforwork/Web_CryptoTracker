@@ -83,8 +83,7 @@ class ProductionConfig(Config):
     TESTING: bool = False
 
     # Database URL cho production - PHẢI set qua environment variable
-    # Lưu ý: Kiểm tra sẽ được thực hiện trong create_app
-    SQLALCHEMY_DATABASE_URI: str = ""
+    SQLALCHEMY_DATABASE_URI: str = os.environ.get("DATABASE_URL", "")
 
     # Cài đặt riêng cho production
     SQLALCHEMY_ECHO: bool = False
