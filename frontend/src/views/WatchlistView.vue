@@ -1,9 +1,28 @@
 <template>
   <div class="watchlist-view">
     <div class="container">
+      <!-- Header -->
       <header class="page-header">
-        <h1 class="page-title">Watchlist</h1>
-        <p class="page-subtitle">Danh sách các coin bạn đang theo dõi</p>
+        <div class="header-content">
+          <h1 class="page-title">
+            <svg class="title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+            Watchlist
+          </h1>
+          <p class="page-subtitle">Danh sách các coin bạn đang theo dõi</p>
+        </div>
+        <button 
+          class="btn-refresh" 
+          @click="refreshWatchlist"
+          :disabled="isLoading"
+          aria-label="Làm mới"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="23 4 23 10 17 10"/>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+          </svg>
+        </button>
       </header>
       
       <!-- Loading -->
@@ -13,103 +32,109 @@
         </div>
       </div>
       
+      <!-- Error State -->
+      <div class="error-state" v-else-if="error">
+        <p class="error-message">{{ error }}</p>
+        <button class="btn-retry" @click="refreshWatchlist">Thử lại</button>
+      </div>
+      
       <!-- Empty State -->
       <div class="empty-state" v-else-if="coins.length === 0">
+        <div class="empty-illustration">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+          </svg>
+        </div>
         <p class="empty-message">Bạn chưa theo dõi coin nào</p>
-        <button class="btn-explore" @click="$router.push('/')">Khám phá ngay</button>
+        <p class="empty-hint">Khám phá và thêm các coin yêu thích vào danh sách</p>
+        <button class="btn-explore" @click="$router.push('/')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="11" cy="11" r="8"/>
+            <path d="m21 21-4.35-4.35"/>
+          </svg>
+          Khám phá ngay
+        </button>
       </div>
       
       <!-- Watchlist Table -->
-      <div class="coin-table" v-else>
-        <div class="table-header">
-          <span class="col-rank">#</span>
-          <span class="col-name">Tên</span>
-          <span class="col-price">Giá</span>
-          <span class="col-change">24h %</span>
-          <span class="col-action"></span>
-        </div>
-        
-        <div 
-          class="table-row" 
-          v-for="(item, index) in coins" 
-          :key="item.coin_id"
-          @click="goToCoinDetail(item.coin_id)"
-        >
-          <span class="col-rank">{{ index + 1 }}</span>
-          <span class="col-name">
-            <img :src="item.coin?.image" :alt="item.coin?.name" class="coin-icon" />
-            <span class="coin-name">{{ item.coin?.name }}</span>
-            <span class="coin-symbol">{{ item.coin?.symbol?.toUpperCase() }}</span>
-          </span>
-          <span class="col-price">${{ formatPrice(item.coin?.current_price) }}</span>
-          <span 
-            class="col-change"
-            :class="{ 'positive': item.coin?.price_change_percentage_24h > 0, 'negative': item.coin?.price_change_percentage_24h < 0 }"
-          >
-            {{ item.coin?.price_change_percentage_24h > 0 ? '▲' : '▼' }}
-            {{ Math.abs(item.coin?.price_change_percentage_24h).toFixed(2) }}%
-          </span>
-          <span class="col-action">
-            <button 
-              class="btn-delete"
-              @click.stop="removeCoin(item.coin_id)"
-            >
-              🗑️
-            </button>
-          </span>
+      <CoinTable 
+        v-else
+        :coins="coins"
+        mode="watchlist"
+        @remove-from-watchlist="handleRemove"
+      />
+    </div>
+    
+    <!-- Toast -->
+    <Teleport to="body">
+      <div class="toast-wrapper" v-if="toast.show">
+        <div class="toast" :class="toast.type">
+          <span class="toast-message">{{ toast.message }}</span>
         </div>
       </div>
-    </div>
+    </Teleport>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { api } from '@/services/api'
+import { ref, computed, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
+import { useWatchlistStore } from '@/stores/watchlistStore'
+import CoinTable from '@/components/CoinTable.vue'
 
-const router = useRouter()
+// =====================================================
+// STORE
+// =====================================================
+const watchlistStore = useWatchlistStore()
+const { coins, isLoading, error } = storeToRefs(watchlistStore)
 
-// State
-const coins = ref([])
-const isLoading = ref(true)
+// =====================================================
+// STATE
+// =====================================================
+const toast = ref({
+  show: false,
+  message: '',
+  type: 'info'
+})
 
-// Methods
-function formatPrice(price) {
-  if (!price) return '0.00'
-  return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+// =====================================================
+// METHODS
+// =====================================================
+
+/**
+ * Refresh watchlist
+ */
+async function refreshWatchlist() {
+  await watchlistStore.fetchWatchlist()
 }
 
-function goToCoinDetail(coinId) {
-  router.push(`/coin/${coinId}`)
-}
-
-async function fetchWatchlist() {
-  isLoading.value = true
-  
+/**
+ * Xóa coin khỏi watchlist
+ */
+async function handleRemove(coinId) {
   try {
-    const response = await api.get('/watchlist')
-    coins.value = response.data.watchlist || []
+    await watchlistStore.removeCoin(coinId)
+    showToast('Đã xóa khỏi watchlist', 'success')
   } catch (err) {
-    console.error('Error fetching watchlist:', err)
-  } finally {
-    isLoading.value = false
+    showToast('Không thể xóa khỏi watchlist', 'error')
   }
 }
 
-async function removeCoin(coinId) {
-  try {
-    await api.delete(`/watchlist/${coinId}`)
-    // Optimistic update - remove from local state immediately
-    coins.value = coins.value.filter(item => item.coin_id !== coinId)
-  } catch (err) {
-    console.error('Error removing coin:', err)
-  }
+/**
+ * Hiện toast notification
+ */
+function showToast(message, type = 'info') {
+  toast.value = { show: true, message, type }
+  setTimeout(() => {
+    toast.value.show = false
+  }, 3000)
 }
 
-// Lifecycle
+// =====================================================
+// LIFECYCLE
+// =====================================================
 onMounted(() => {
-  fetchWatchlist()
+  watchlistStore.fetchWatchlist()
 })
 </script>
 
@@ -119,16 +144,35 @@ onMounted(() => {
   min-height: 100vh;
 }
 
+/* =====================================================
+   HEADER
+   ===================================================== */
 .page-header {
-  text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
   margin-bottom: var(--spacing-2xl);
 }
 
+.header-content {
+  text-align: left;
+}
+
 .page-title {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-sm);
   font-size: var(--font-size-3xl);
   font-weight: 700;
   color: var(--color-text-primary);
   margin-bottom: var(--spacing-sm);
+}
+
+.title-icon {
+  width: 32px;
+  height: 32px;
+  color: var(--color-warning);
+  fill: var(--color-warning);
 }
 
 .page-subtitle {
@@ -136,123 +180,120 @@ onMounted(() => {
   color: var(--color-text-secondary);
 }
 
-/* Empty State */
+.btn-refresh {
+  padding: var(--spacing-sm);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text-secondary);
+  transition: all var(--transition-fast);
+  cursor: pointer;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.btn-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-refresh svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* =====================================================
+   EMPTY STATE
+   ===================================================== */
 .empty-state {
   text-align: center;
-  padding: var(--spacing-2xl);
+  padding: var(--spacing-3xl);
+  background: var(--color-bg-secondary);
+  border-radius: var(--radius-lg);
+}
+
+.empty-illustration {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto var(--spacing-xl);
+  color: var(--color-text-secondary);
+  opacity: 0.5;
+}
+
+.empty-illustration svg {
+  width: 100%;
+  height: 100%;
 }
 
 .empty-message {
+  color: var(--color-text-primary);
+  font-size: var(--font-size-xl);
+  font-weight: 600;
+  margin-bottom: var(--spacing-sm);
+}
+
+.empty-hint {
   color: var(--color-text-secondary);
-  font-size: var(--font-size-lg);
-  margin-bottom: var(--spacing-lg);
+  font-size: var(--font-size-base);
+  margin-bottom: var(--spacing-xl);
 }
 
 .btn-explore {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-sm);
   padding: var(--spacing-md) var(--spacing-xl);
   background: var(--color-primary);
   border-radius: var(--radius-md);
   color: var(--color-text-primary);
   font-weight: 600;
   transition: all var(--transition-fast);
+  cursor: pointer;
 }
 
 .btn-explore:hover {
   background: var(--color-primary-light);
+  transform: translateY(-2px);
 }
 
-/* Table */
-.coin-table {
-  background: var(--color-bg-secondary);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
+.btn-explore svg {
+  width: 18px;
+  height: 18px;
 }
 
-.table-header {
-  display: grid;
-  grid-template-columns: 60px 1fr 150px 120px 80px;
-  padding: var(--spacing-md);
-  background: var(--color-bg-primary);
-  font-weight: 600;
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+/* =====================================================
+   ERROR STATE
+   ===================================================== */
+.error-state {
+  text-align: center;
+  padding: var(--spacing-2xl);
 }
 
-.table-row {
-  display: grid;
-  grid-template-columns: 60px 1fr 150px 120px 80px;
-  padding: var(--spacing-md);
-  border-bottom: 1px solid var(--color-border);
-  cursor: pointer;
-  transition: background-color var(--transition-fast);
-  align-items: center;
-}
-
-.table-row:hover {
-  background: var(--color-bg-primary);
-}
-
-.table-row:last-child {
-  border-bottom: none;
-}
-
-.col-rank {
-  color: var(--color-text-secondary);
-  font-weight: 500;
-}
-
-.col-name {
-  display: flex;
-  align-items: center;
-  gap: var(--spacing-sm);
-}
-
-.coin-icon {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-}
-
-.coin-name {
-  font-weight: 500;
-  color: var(--color-text-primary);
-}
-
-.coin-symbol {
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-}
-
-.col-price {
-  font-weight: 600;
-  color: var(--color-text-primary);
-}
-
-.col-change {
-  font-weight: 500;
-}
-
-.col-change.positive {
-  color: var(--color-success);
-}
-
-.col-change.negative {
+.error-message {
   color: var(--color-danger);
+  margin-bottom: var(--spacing-md);
 }
 
-.btn-delete {
-  padding: var(--spacing-xs);
-  font-size: var(--font-size-lg);
-  transition: transform var(--transition-fast);
+.btn-retry {
+  padding: var(--spacing-sm) var(--spacing-xl);
+  background: var(--color-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--color-text-primary);
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.btn-delete:hover {
-  transform: scale(1.2);
+.btn-retry:hover {
+  background: var(--color-primary-light);
 }
 
-/* Skeleton */
+/* =====================================================
+   SKELETON LOADING
+   ===================================================== */
 .skeleton-table {
   background: var(--color-bg-secondary);
   border-radius: var(--radius-lg);
@@ -263,25 +304,80 @@ onMounted(() => {
   height: 60px;
   margin-bottom: var(--spacing-sm);
   border-radius: var(--radius-md);
+  background: linear-gradient(90deg, 
+    var(--color-bg-primary) 25%, 
+    var(--color-bg-secondary) 50%, 
+    var(--color-bg-primary) 75%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.5s infinite;
 }
 
-/* Responsive */
+.skeleton-row:last-child {
+  margin-bottom: 0;
+}
+
+@keyframes skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* =====================================================
+   TOAST
+   ===================================================== */
+.toast-wrapper {
+  position: fixed;
+  bottom: var(--spacing-xl);
+  right: var(--spacing-xl);
+  z-index: 1000;
+}
+
+.toast {
+  padding: var(--spacing-md) var(--spacing-lg);
+  background: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: toast-in 0.3s ease;
+}
+
+.toast.success {
+  border-color: rgba(16, 185, 129, 0.5);
+}
+
+.toast.error {
+  border-color: rgba(239, 68, 68, 0.5);
+}
+
+.toast-message {
+  color: var(--color-text-primary);
+  font-weight: 500;
+}
+
+@keyframes toast-in {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+/* =====================================================
+   RESPONSIVE
+   ===================================================== */
 @media (max-width: 768px) {
-  .table-header {
-    display: none;
+  .page-header {
+    flex-direction: column;
+    gap: var(--spacing-md);
   }
   
-  .table-row {
-    grid-template-columns: 1fr;
-    gap: var(--spacing-sm);
-  }
-  
-  .col-rank {
-    display: none;
-  }
-  
-  .col-name {
-    flex-wrap: wrap;
+  .toast-wrapper {
+    left: var(--spacing-md);
+    right: var(--spacing-md);
+    bottom: var(--spacing-md);
   }
 }
 </style>

@@ -112,12 +112,19 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { createChart } from 'lightweight-charts'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
+import { useWatchlistStore } from '@/stores/watchlistStore'
 import { api } from '@/services/api'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
+const watchlistStore = useWatchlistStore()
+
+// Store refs
+const { isAuthenticated } = storeToRefs(authStore)
+const { coins: watchlistCoins } = storeToRefs(watchlistStore)
 
 // State
 const coin = ref(null)
@@ -127,6 +134,14 @@ const error = ref(null)
 const chart = ref(null)
 const chartSeries = ref(null)
 const selectedPeriod = ref(7)
+const chartContainer = ref(null)
+
+// Toast state
+const toast = ref({
+  show: false,
+  message: '',
+  type: 'info'
+})
 
 // Period options
 const periods = [
@@ -138,11 +153,13 @@ const periods = [
 ]
 
 // Computed
-const isAuthenticated = computed(() => authStore.isAuthenticated)
+const hasCoin = computed(() => {
+  return watchlistCoins.value.some(c => c.id === coin.value?.id)
+})
 
 // Methods
 function formatPrice(price) {
-  if (!price) return '0.00'
+  if (!price && price !== 0) return '0.00'
   return price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
@@ -155,8 +172,11 @@ function formatLargeNumber(num) {
   return num.toString()
 }
 
-function hasCoin(coinId) {
-  return false // Will be implemented with watchlist store
+function showToast(message, type = 'info') {
+  toast.value = { show: true, message, type }
+  setTimeout(() => {
+    toast.value.show = false
+  }, 3000)
 }
 
 function selectPeriod(period) {
@@ -190,6 +210,13 @@ async function fetchCoinHistory(days = 7) {
 
 function initChart() {
   if (!chartContainer.value) return
+  
+  // Cleanup existing chart
+  if (chart.value) {
+    chart.value.remove()
+    chart.value = null
+    chartSeries.value = null
+  }
   
   chart.value = createChart(chartContainer.value, {
     width: chartContainer.value.clientWidth,
@@ -235,12 +262,27 @@ function updateChart() {
   chart.value?.timeScale().fitContent()
 }
 
-function addToWatchlist(coinId) {
-  // Will be implemented later
+async function addToWatchlist(coinId) {
+  if (!isAuthenticated.value) {
+    showToast('Vui lòng đăng nhập để thêm vào watchlist', 'error')
+    return
+  }
+  
+  try {
+    await watchlistStore.addCoin(coinId)
+    showToast('Đã thêm vào watchlist', 'success')
+  } catch (err) {
+    showToast(err.message || 'Không thể thêm vào watchlist', 'error')
+  }
 }
 
-function removeFromWatchlist(coinId) {
-  // Will be implemented later
+async function removeFromWatchlist(coinId) {
+  try {
+    await watchlistStore.removeCoin(coinId)
+    showToast('Đã xóa khỏi watchlist', 'success')
+  } catch (err) {
+    showToast(err.message || 'Không thể xóa khỏi watchlist', 'error')
+  }
 }
 
 function goToCompare() {
@@ -264,8 +306,33 @@ onUnmounted(() => {
 })
 
 // Watch for resize
-watch(() => route.params.id, () => {
-  fetchCoinDetail()
+watch(() => route.params.id, async (newId) => {
+  if (newId) {
+    await fetchCoinDetail()
+    if (coin.value) {
+      initChart()
+      fetchCoinHistory(selectedPeriod.value)
+    }
+  }
+})
+
+// Watch chart container resize
+let resizeObserver = null
+onMounted(() => {
+  if (chartContainer.value) {
+    resizeObserver = new ResizeObserver(() => {
+      if (chart.value && chartContainer.value) {
+        chart.value.resize(chartContainer.value.clientWidth, 400)
+      }
+    })
+    resizeObserver.observe(chartContainer.value)
+  }
+})
+
+onUnmounted(() => {
+  if (resizeObserver) {
+    resizeObserver.disconnect()
+  }
 })
 </script>
 

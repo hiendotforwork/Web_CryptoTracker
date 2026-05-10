@@ -67,6 +67,13 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     localStorage.removeItem('token')
     localStorage.removeItem('user')
+    
+    // Clear watchlist khi logout
+    // Import dynamic để tránh circular dependency
+    import('@/stores/watchlistStore').then(({ useWatchlistStore }) => {
+      const watchlistStore = useWatchlistStore()
+      watchlistStore.clear()
+    })
   }
   
   // =====================================================

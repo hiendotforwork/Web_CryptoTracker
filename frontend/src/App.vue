@@ -163,8 +163,9 @@
  * WHY: Tách riêng layout giúp các view con tập trung vào logic nghiệp vụ
  * HOW: Dùng Composition API, provide/inject cho toast system
  */
-import { ref, computed, onMounted, onUnmounted, h } from 'vue'
+import { ref, onMounted, onUnmounted, h } from 'vue'
 import { useRouter } from 'vue-router'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 
 // =====================================================
@@ -327,9 +328,8 @@ const isMenuOpen = ref(false)
 const toasts = ref([])
 const windowWidth = ref(window.innerWidth)
 
-// Computed
-const isAuthenticated = computed(() => authStore.isAuthenticated)
-const user = computed(() => authStore.user)
+// Use storeToRefs để giữ reactivity cho destructured refs
+const { isAuthenticated, user } = storeToRefs(authStore)
 
 // =====================================================
 // METHODS
