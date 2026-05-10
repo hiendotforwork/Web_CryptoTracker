@@ -692,7 +692,7 @@ Lệnh chạy thủ công:
 - [ ] Input có `autocomplete` attribute (`username`, `current-password`, `email`)
 
 **🧪 Test case:**
-
+ope
 | # | Hành động | Input | Kết quả mong đợi |
 |---|-----------|-------|-----------------|
 | 1 | Mở `/auth` | — | Form Login hiển thị mặc định |

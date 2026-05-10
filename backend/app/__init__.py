@@ -19,6 +19,9 @@ from flask_migrate import Migrate
 # Import db từ models package (dùng chung cho tất cả models)
 from app.models import db
 
+# Import limiter từ module limiter
+from app.limiter import limiter
+
 # Khởi tạo các extensions
 jwt = JWTManager()
 migrate = Migrate()
@@ -90,6 +93,9 @@ def _init_extensions(app: Flask):
     cors_origins = "*" if app.config.get("DEBUG") else app.config.get("CORS_ORIGINS", "")
     CORS(app, resources={r"/api/*": {"origins": cors_origins}})
 
+    # Limiter
+    limiter.init_app(app)
+
     # Migrate
     migrate.init_app(app, db)
 
@@ -127,6 +133,11 @@ def _register_error_handlers(app: Flask):
     def not_found(error):
         """Xử lý lỗi 404 - Not Found."""
         return jsonify({"error": "Không tìm thấy resource"}), 404
+
+    @app.errorhandler(429)
+    def ratelimit_handler(e):
+        """Xử lý lỗi 429 - Too Many Requests."""
+        return jsonify({"error": f"Quá nhiều yêu cầu: {e.description}"}), 429
 
     @app.errorhandler(500)
     def internal_error(error):

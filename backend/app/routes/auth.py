@@ -10,6 +10,7 @@ import re
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import create_access_token
 from app.models import db, User
+from app.limiter import limiter
 
 # Khởi tạo Blueprint
 auth_bp = Blueprint("auth", __name__)
@@ -52,6 +53,7 @@ def validate_register_input(data: dict) -> tuple[bool, str]:
 
 
 @auth_bp.route("/register", methods=["POST"])
+@limiter.limit("3 per minute")
 def register():
     """
     Route đăng ký user mới.
@@ -109,6 +111,7 @@ def register():
 
 
 @auth_bp.route("/login", methods=["POST"])
+@limiter.limit("5 per minute")
 def login():
     """
     Route đăng nhập.
