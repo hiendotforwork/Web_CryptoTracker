@@ -42,19 +42,11 @@
         
         <!-- Chart -->
         <div class="chart-container">
-          <div class="chart-tabs">
-            <button 
-              v-for="period in periods" 
-              :key="period.value"
-              class="btn-tab"
-              :class="{ active: selectedPeriod === period.value }"
-              @click="selectPeriod(period.value)"
-            >
-              {{ period.label }}
-            </button>
-          </div>
-          
-          <div ref="chartContainer" class="chart-wrapper"></div>
+          <PriceChart 
+            :prices="prices"
+            :period="selectedPeriod"
+            @period-change="selectPeriod"
+          />
         </div>
         
         <!-- Stats -->
@@ -83,14 +75,14 @@
         <!-- Actions -->
         <div class="actions">
           <button 
-            v-if="isAuthenticated && !hasCoin(coin.id)"
+            v-if="isAuthenticated && !hasCoin"
             class="btn-action btn-add"
             @click="addToWatchlist(coin.id)"
           >
             Thêm vào Watchlist
           </button>
           <button 
-            v-else-if="isAuthenticated && hasCoin(coin.id)"
+            v-else-if="isAuthenticated && hasCoin"
             class="btn-action btn-remove"
             @click="removeFromWatchlist(coin.id)"
           >
@@ -109,13 +101,21 @@
 </template>
 
 <script setup>
+/**
+ * CoinDetailView - Trang chi tiết coin
+ * 
+ * What: Hiển thị thông tin chi tiết của một coin (giá, biểu đồ, stats)
+ * Why: Component chính cho route /coin/:id
+ * How: Kết hợp PriceChart component, watchlist store, auth store
+ */
+
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { createChart } from 'lightweight-charts'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
 import { useWatchlistStore } from '@/stores/watchlistStore'
 import { api } from '@/services/api'
+import PriceChart from '@/components/PriceChart.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -131,10 +131,7 @@ const coin = ref(null)
 const prices = ref([])
 const isLoading = ref(true)
 const error = ref(null)
-const chart = ref(null)
-const chartSeries = ref(null)
 const selectedPeriod = ref(7)
-const chartContainer = ref(null)
 
 // Toast state
 const toast = ref({
@@ -142,15 +139,6 @@ const toast = ref({
   message: '',
   type: 'info'
 })
-
-// Period options
-const periods = [
-  { label: '24H', value: 1 },
-  { label: '7D', value: 7 },
-  { label: '30D', value: 30 },
-  { label: '90D', value: 90 },
-  { label: '1Y', value: 365 }
-]
 
 // Computed
 const hasCoin = computed(() => {
@@ -184,84 +172,6 @@ function selectPeriod(period) {
   fetchCoinHistory(period)
 }
 
-async function fetchCoinDetail() {
-  isLoading.value = true
-  error.value = null
-  
-  try {
-    const response = await api.get(`/coins/${route.params.id}`)
-    coin.value = response.data.coin
-  } catch (err) {
-    error.value = 'Không tìm thấy coin'
-  } finally {
-    isLoading.value = false
-  }
-}
-
-async function fetchCoinHistory(days = 7) {
-  try {
-    const response = await api.get(`/coins/${route.params.id}/history?days=${days}`)
-    prices.value = response.data.prices || []
-    updateChart()
-  } catch (err) {
-    console.error('Error fetching history:', err)
-  }
-}
-
-function initChart() {
-  if (!chartContainer.value) return
-  
-  // Cleanup existing chart
-  if (chart.value) {
-    chart.value.remove()
-    chart.value = null
-    chartSeries.value = null
-  }
-  
-  chart.value = createChart(chartContainer.value, {
-    width: chartContainer.value.clientWidth,
-    height: 400,
-    layout: {
-      background: { type: 'solid', color: '#1a3a5c' },
-      textColor: '#8ab4c4'
-    },
-    grid: {
-      vertLines: { color: '#0d1a26' },
-      horzLines: { color: '#0d1a26' }
-    },
-    crosshair: {
-      mode: 1
-    },
-    rightPriceScale: {
-      borderColor: '#3d6b8a'
-    },
-    timeScale: {
-      borderColor: '#3d6b8a',
-      timeVisible: true,
-      secondsVisible: false
-    }
-  })
-  
-  chartSeries.value = chart.value.addAreaSeries({
-    lineColor: '#3d6b8a',
-    topColor: 'rgba(61, 107, 138, 0.4)',
-    bottomColor: 'rgba(61, 107, 138, 0.1)',
-    lineWidth: 2
-  })
-}
-
-function updateChart() {
-  if (!chartSeries.value || !prices.value.length) return
-  
-  const data = prices.value.map(([ts, value]) => ({
-    time: Math.floor(ts / 1000),
-    value
-  }))
-  
-  chartSeries.value.setData(data)
-  chart.value?.timeScale().fitContent()
-}
-
 async function addToWatchlist(coinId) {
   if (!isAuthenticated.value) {
     showToast('Vui lòng đăng nhập để thêm vào watchlist', 'error')
@@ -289,49 +199,45 @@ function goToCompare() {
   router.push(`/compare?coin1=${coin.value.id}`)
 }
 
-// Lifecycle
-onMounted(async () => {
-  await fetchCoinDetail()
-  if (coin.value) {
-    initChart()
-    fetchCoinHistory(selectedPeriod.value)
+// Fetch functions
+async function fetchCoinDetail() {
+  isLoading.value = true
+  error.value = null
+  
+  try {
+    const response = await api.get(`/coins/${route.params.id}`)
+    coin.value = response.data.coin
+  } catch (err) {
+    error.value = 'Không tìm thấy coin'
+  } finally {
+    isLoading.value = false
   }
-})
+}
 
-onUnmounted(() => {
-  if (chart.value) {
-    chart.value.remove()
-    chart.value = null
+async function fetchCoinHistory(days = 7) {
+  try {
+    const response = await api.get(`/coins/${route.params.id}/history?days=${days}`)
+    prices.value = response.data.prices || []
+  } catch (err) {
+    console.error('Error fetching history:', err)
   }
-})
+}
 
-// Watch for resize
+// Watch route params thay đổi
 watch(() => route.params.id, async (newId) => {
   if (newId) {
     await fetchCoinDetail()
     if (coin.value) {
-      initChart()
       fetchCoinHistory(selectedPeriod.value)
     }
   }
 })
 
-// Watch chart container resize
-let resizeObserver = null
-onMounted(() => {
-  if (chartContainer.value) {
-    resizeObserver = new ResizeObserver(() => {
-      if (chart.value && chartContainer.value) {
-        chart.value.resize(chartContainer.value.clientWidth, 400)
-      }
-    })
-    resizeObserver.observe(chartContainer.value)
-  }
-})
-
-onUnmounted(() => {
-  if (resizeObserver) {
-    resizeObserver.disconnect()
+// Lifecycle
+onMounted(async () => {
+  await fetchCoinDetail()
+  if (coin.value) {
+    fetchCoinHistory(selectedPeriod.value)
   }
 })
 </script>
@@ -451,44 +357,12 @@ onUnmounted(() => {
   color: var(--color-danger);
 }
 
-/* Chart */
+/* Chart Container */
 .chart-container {
   background: var(--color-bg-secondary);
   border-radius: var(--radius-lg);
   padding: var(--spacing-lg);
   margin-bottom: var(--spacing-xl);
-}
-
-.chart-tabs {
-  display: flex;
-  gap: var(--spacing-sm);
-  margin-bottom: var(--spacing-lg);
-}
-
-.btn-tab {
-  padding: var(--spacing-sm) var(--spacing-md);
-  background: transparent;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  color: var(--color-text-secondary);
-  font-size: var(--font-size-sm);
-  font-weight: 500;
-  transition: all var(--transition-fast);
-}
-
-.btn-tab:hover {
-  border-color: var(--color-primary);
-  color: var(--color-primary);
-}
-
-.btn-tab.active {
-  background: var(--color-primary);
-  border-color: var(--color-primary);
-  color: var(--color-text-primary);
-}
-
-.chart-wrapper {
-  height: 400px;
 }
 
 /* Stats */

@@ -82,7 +82,10 @@ class Coin(db.Model):
             "current_price": float(self.current_price) if self.current_price else 0,
             "market_cap": float(self.market_cap) if self.market_cap else 0,
             "market_cap_rank": self.market_cap_rank,
+            # volume và total_volume đều map về cùng 1 field
+            # WHY: CoinGecko Markets API trả về "total_volume", frontend dùng key này
             "volume": float(self.volume) if self.volume else 0,
+            "total_volume": float(self.volume) if self.volume else 0,
             "price_change_24h": float(self.price_change_24h) if self.price_change_24h else 0,
             "price_change_percentage_24h": float(self.price_change_percentage_24h) if self.price_change_percentage_24h else 0,
             "circulating_supply": float(self.circulating_supply) if self.circulating_supply else 0,

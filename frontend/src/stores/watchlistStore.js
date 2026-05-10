@@ -36,7 +36,8 @@ export const useWatchlistStore = defineStore('watchlist', () => {
 
     try {
       // Lấy danh sách watchlist items (chỉ có coin_id)
-      const response = await api.get('/watchlist')
+      // _skipAuthRedirect: true → báo interceptor không tự redirect, store tự xử lý 401
+      const response = await api.get('/watchlist/', { _skipAuthRedirect: true })
       const watchlistItems = response.data.watchlist || []
       
       // Nếu không có items, trả về empty array
@@ -64,7 +65,12 @@ export const useWatchlistStore = defineStore('watchlist', () => {
       coins.value = coinDetails.filter(Boolean)
 
     } catch (err) {
-      error.value = 'Không thể tải watchlist'
+      // Phân biệt lỗi 401 (token hết hạn) với lỗi khác
+      if (err.response?.status === 401) {
+        error.value = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+      } else {
+        error.value = 'Không thể tải watchlist'
+      }
       console.error('Error fetching watchlist:', err)
     } finally {
       isLoading.value = false
@@ -77,7 +83,7 @@ export const useWatchlistStore = defineStore('watchlist', () => {
    */
   async function addCoin(coinId) {
     try {
-      await api.post('/watchlist', { coin_id: coinId })
+      await api.post('/watchlist/', { coin_id: coinId }, { _skipAuthRedirect: true })
       
       // Fetch lại thông tin coin để thêm vào local state
       const res = await api.get(`/coins/${coinId}`)
@@ -87,6 +93,9 @@ export const useWatchlistStore = defineStore('watchlist', () => {
       
       return true
     } catch (err) {
+      if (err.response?.status === 401) {
+        throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
+      }
       const errorMsg = err.response?.data?.error || 'Không thể thêm vào watchlist'
       throw new Error(errorMsg)
     }
@@ -98,13 +107,16 @@ export const useWatchlistStore = defineStore('watchlist', () => {
    */
   async function removeCoin(coinId) {
     try {
-      await api.delete(`/watchlist/${coinId}`)
+      await api.delete(`/watchlist/${coinId}/`, { _skipAuthRedirect: true })
       
       // Xóa khỏi local state
       coins.value = coins.value.filter(c => c.id !== coinId)
       
       return true
     } catch (err) {
+      if (err.response?.status === 401) {
+        throw new Error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.')
+      }
       const errorMsg = err.response?.data?.error || 'Không thể xóa khỏi watchlist'
       throw new Error(errorMsg)
     }

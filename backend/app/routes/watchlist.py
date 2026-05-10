@@ -18,7 +18,7 @@ from sqlalchemy.exc import IntegrityError
 watchlist_bp = Blueprint("watchlist", __name__)
 
 
-@watchlist_bp.route("/", methods=["GET"])
+@watchlist_bp.route("/", methods=["GET"], strict_slashes=False)
 @jwt_required()
 def get_watchlist():
     """
@@ -37,7 +37,7 @@ def get_watchlist():
     })
 
 
-@watchlist_bp.route("/", methods=["POST"])
+@watchlist_bp.route("/", methods=["POST"], strict_slashes=False)
 @jwt_required()
 def add_to_watchlist():
     """
@@ -85,7 +85,7 @@ def add_to_watchlist():
     }), 201
 
 
-@watchlist_bp.route("/<coin_id>", methods=["DELETE"])
+@watchlist_bp.route("/<coin_id>", methods=["DELETE"], strict_slashes=False)
 @jwt_required()
 def remove_from_watchlist(coin_id: str):
     """

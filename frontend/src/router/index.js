@@ -38,6 +38,12 @@ const routes = [
     meta: { title: 'Tin tức - Crypto Tracker' }
   },
   {
+    path: '/compare',
+    name: 'Compare',
+    component: () => import('@/views/CompareView.vue'),
+    meta: { title: 'So sánh - Crypto Tracker' }
+  },
+  {
     path: '/watchlist',
     name: 'Watchlist',
     component: () => import('@/views/WatchlistView.vue'),

@@ -1,9 +1,12 @@
 /**
- * Crypto Tracker - API Service
- * 
+ * API Service
+ *
  * Axios instance duy nhất cho all API calls.
  * - Request interceptor: tự gắn Authorization header
- * - Response interceptor: xử lý 401 → redirect to /auth
+ * - Response interceptor: xử lý 401 → redirect /auth
+ *
+ * Để bỏ qua auto-redirect 401 (ví dụ watchlist), thêm
+ * { _skipAuthRedirect: true } vào config của request.
  */
 
 // =====================================================
@@ -30,42 +33,45 @@ const api = axios.create({
  */
 api.interceptors.request.use(
   (config) => {
-    // Lấy token từ localStorage
     const token = localStorage.getItem('token')
-    
-    // Nếu có token, gắn vào Authorization header
     if (token) {
       config.headers.Authorization = `Bearer ${token}`
     }
-    
     return config
   },
-  (error) => {
-    return Promise.reject(error)
-  }
+  (error) => Promise.reject(error)
 )
 
 // =====================================================
 // RESPONSE INTERCEPTOR
 // =====================================================
 /**
- * Response interceptor - Xử lý lỗi authentication
+ * Response interceptor - Xử lý lỗi 401 tự động
+ *
+ * WHY: Chỉ redirect khi:
+ * 1. Không phải request auth (login/register)
+ * 2. Không đang ở trang /auth (tránh loop)
+ * 3. Request không có cờ _skipAuthRedirect = true
  */
 api.interceptors.response.use(
-  (response) => {
-    return response
-  },
+  (response) => response,
   (error) => {
-    // Xử lý lỗi 401 - Unauthorized
     if (error.response?.status === 401) {
-      // Xóa token khỏi localStorage
-      localStorage.removeItem('token')
-      localStorage.removeItem('user')
-      
-      // Redirect về trang /auth
-      window.location.href = '/auth'
+      const requestUrl = error.config?.url || ''
+      const isAuthRequest =
+        requestUrl.includes('/auth/login') ||
+        requestUrl.includes('/auth/register')
+
+      // Cờ cho phép caller tự xử lý 401 mà không bị redirect
+      const skipRedirect = error.config?._skipAuthRedirect === true
+
+      if (!isAuthRequest && !skipRedirect && window.location.pathname !== '/auth') {
+        localStorage.removeItem('token')
+        localStorage.removeItem('user')
+        window.location.href = '/auth'
+      }
     }
-    
+
     return Promise.reject(error)
   }
 )
