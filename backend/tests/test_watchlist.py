@@ -12,25 +12,8 @@ Các test case trong Task 4.4:
 """
 
 import pytest
-from app import create_app
 from app.database import db
 from app.models import User, Coin, Watchlist
-
-
-@pytest.fixture
-def app():
-    """Tạo app testing với SQLite in-memory."""
-    app = create_app("testing")
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.drop_all()
-
-
-@pytest.fixture
-def client(app):
-    """Tạo test client."""
-    return app.test_client()
 
 
 @pytest.fixture

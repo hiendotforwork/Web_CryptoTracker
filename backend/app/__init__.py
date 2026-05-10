@@ -55,6 +55,9 @@ def create_app(config_name: str = "development"):
     # Đăng ký routes
     _register_routes(app)
 
+    # Khởi động scheduler (chỉ khi không phải testing)
+    _init_scheduler(app)
+
     # Đăng ký error handlers
     _register_error_handlers(app)
 
@@ -109,6 +112,12 @@ def _register_routes(app: Flask):
     app.register_blueprint(coins_bp, url_prefix="/api/coins")
     app.register_blueprint(news_bp, url_prefix="/api/news")
     app.register_blueprint(watchlist_bp, url_prefix="/api/watchlist")
+
+
+def _init_scheduler(app: Flask):
+    """Khởi động APScheduler (chỉ khi không phải testing)."""
+    from app.scheduler import init_scheduler
+    init_scheduler(app)
 
 
 def _register_error_handlers(app: Flask):

@@ -12,26 +12,9 @@ Các test case trong Task 4.3:
 import pytest
 from datetime import datetime, timezone
 from unittest.mock import patch, MagicMock
-from app import create_app
 from app.database import db
 from app.models import News
 from app.services.crypto_news import fetch_and_save_news, _parse_date
-
-
-@pytest.fixture
-def app():
-    """Tạo app testing với SQLite in-memory."""
-    app = create_app("testing")
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.drop_all()
-
-
-@pytest.fixture
-def client(app):
-    """Tạo test client."""
-    return app.test_client()
 
 
 # =====================================================
@@ -75,6 +58,7 @@ class TestFetchNews:
         """Test #1: Fetch lần 1 lưu tin mới."""
         # Mock API response
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.json.return_value = [
             {
                 "title": "Bitcoin hits $50k",
@@ -108,6 +92,7 @@ class TestFetchNews:
         """Test #2: Fetch lần 2 không trùng lặp."""
         # Mock API response
         mock_response = MagicMock()
+        mock_response.status_code = 200
         mock_response.json.return_value = [
             {
                 "title": "Bitcoin hits $50k",

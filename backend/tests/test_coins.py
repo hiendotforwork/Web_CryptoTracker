@@ -13,25 +13,9 @@ Các test case trong Task 4.2:
 """
 
 import pytest
-from app import create_app
+from unittest.mock import patch
 from app.database import db
 from app.models import Coin
-
-
-@pytest.fixture
-def app():
-    """Tạo app testing với SQLite in-memory."""
-    app = create_app("testing")
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.drop_all()
-
-
-@pytest.fixture
-def client(app):
-    """Tạo test client."""
-    return app.test_client()
 
 
 @pytest.fixture
@@ -83,17 +67,28 @@ class TestCoinDetail:
     """Test coin detail endpoint."""
 
     def test_get_coin_detail(self, client, sample_coins):
-        """Test #3: GET /api/coins/bitcoin."""
+        """Test #3: GET /api/coins/bitcoin — coin có sẵn trong DB, không gọi API ngoài."""
+        # Bitcoin có trong sample_coins → route lấy từ DB mà không cần gọi CoinGecko
         response = client.get("/api/coins/bitcoin")
-        
-        assert response.status_code in [200, 503]  # 200 nếu có trong DB, 503 nếu gọi API fail
 
-    def test_get_coin_not_found(self, client):
-        """Test #4: GET /api/coins/invalid-xyz."""
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "coin" in data
+        assert data["coin"]["id"] == "bitcoin"
+
+    @patch("app.routes.coins.fetch_coin_detail")
+    def test_get_coin_not_found(self, mock_fetch, client):
+        """Test #4: GET /api/coins/invalid-xyz — coin không có trong DB và API trả None."""
+        # Simulate: coin không tồn tại trong hệ thống, API cũng không tìm thấy
+        mock_fetch.return_value = None
+
         response = client.get("/api/coins/invalid-xyz")
-        
-        # Có thể 404 hoặc 503 tùy thuộc vào API response
-        assert response.status_code in [404, 503]
+
+        # Route trả 503 khi external API không phản hồi (theo thiết kế hiện tại)
+        assert response.status_code == 503
+        data = response.get_json()
+        assert "error" in data
+        mock_fetch.assert_called_once_with("invalid-xyz")
 
 
 # =====================================================
@@ -103,14 +98,24 @@ class TestCoinDetail:
 class TestCoinHistory:
     """Test coin history endpoint."""
 
-    def test_get_coin_history(self, client, sample_coins):
-        """Test #5: GET /api/coins/bitcoin/history."""
+    @patch("app.routes.coins.fetch_coin_history")
+    def test_get_coin_history(self, mock_history, client, sample_coins):
+        """Test #5: GET /api/coins/bitcoin/history — trả prices list."""
+        mock_history.return_value = {
+            "prices": [
+                [1700000000000, 42000.5],
+                [1700086400000, 42100.2],
+            ]
+        }
+
         response = client.get("/api/coins/bitcoin/history")
-        
-        assert response.status_code in [200, 503]
-        if response.status_code == 200:
-            data = response.get_json()
-            assert "prices" in data
+
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "prices" in data
+        assert isinstance(data["prices"], list)
+        assert len(data["prices"]) == 2
+        mock_history.assert_called_once_with("bitcoin", 7)
 
 
 # =====================================================

@@ -19,25 +19,7 @@ Các test case trong Task 3.1 (Register) và Task 3.2 (Login):
 """
 
 import pytest
-from app import create_app
-from app.database import db
 from app.models import User
-
-
-@pytest.fixture
-def app():
-    """Tạo app testing với SQLite in-memory."""
-    app = create_app("testing")
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.drop_all()
-
-
-@pytest.fixture
-def client(app):
-    """Tạo test client."""
-    return app.test_client()
 
 
 # =====================================================
@@ -47,7 +29,7 @@ def client(app):
 class TestRegister:
     """Test POST /api/auth/register."""
 
-    def test_register_success(self, app, client):
+    def test_register_success(self, client):
         """Test #1: Register hợp lệ - HTTP 201."""
         response = client.post("/api/auth/register", json={
             "username": "alice",
@@ -224,6 +206,18 @@ class TestLogin:
         assert "error" in data
         assert "username" in data["error"].lower() or "password" in data["error"].lower()
 
+    def test_login_no_json(self, client):
+        """Test #5: Body không JSON - HTTP 400."""
+        response = client.post(
+            "/api/auth/login",
+            data="not json",
+            content_type="text/plain"
+        )
+        
+        assert response.status_code == 400
+        data = response.get_json()
+        assert "error" in data
+
 
 # =====================================================
 # JWT TOKEN TESTS
@@ -242,30 +236,27 @@ class TestJWTToken:
         })
 
     def test_protected_with_valid_token(self, client):
-        """Test #5: Valid token - HTTP 200."""
-        # Login để lấy token
+        """Test #5: Valid token - HTTP 200 (trả về watchlist rỗng của user)."""
         login_response = client.post("/api/auth/login", json={
             "username": "tokenuser",
             "password": "pass123"
         })
         token = login_response.get_json()["access_token"]
         
-        # Gọi protected route (dùng /health hoặc tạo test endpoint)
+        # Dùng trailing slash để tránh 308 redirect
         response = client.get(
-            "/api/watchlist",
+            "/api/watchlist/",
             headers={"Authorization": f"Bearer {token}"}
         )
         
-        # Không bị 401 Unauthorized
-        assert response.status_code != 401
+        assert response.status_code == 200
 
     def test_protected_with_invalid_token(self, client):
         """Test #6: Invalid token - HTTP 401."""
+        # Dùng trailing slash để tránh Flask redirect 308 trước khi kiểm tra JWT
         response = client.get(
-            "/api/watchlist",
-            headers={"Authorization": "Bearer invalid_token"},
-            follow_redirects=False
+            "/api/watchlist/",
+            headers={"Authorization": "Bearer invalid_token"}
         )
         
-        # Accept both 401 (unauthorized) or 308 (redirect due to trailing slash)
-        assert response.status_code in [401, 308]
+        assert response.status_code == 401

@@ -20,50 +20,54 @@ from app.services.coingecko import (
 
 
 class TestFetchCoins:
-    """Test fetch functions với CoinGecko API."""
+    """
+    Test fetch functions với CoinGecko API thật.
+    Đánh dấu @pytest.mark.integration vì gọi network.
+    Chạy riêng với: pytest -m integration
+    """
 
+    @pytest.mark.integration
     def test_fetch_top_coins_structure(self):
-        """Test #1: Fetch top coins trả về list đúng cấu trúc."""
-        # Test với request thật (có thể fail nếu rate limit)
+        """Test #1: Fetch top coins trả về list đúng cấu trúc (real API)."""
         result = fetch_top_coins(1, 25)
-        
-        if result is not None:
-            assert isinstance(result, list)
-            if len(result) > 0:
-                coin = result[0]
-                assert "id" in coin
-                assert "symbol" in coin
-                assert "current_price" in coin or "image" in coin
-        # Nếu None thì bỏ qua (do rate limit)
 
+        assert result is not None, "CoinGecko API không phản hồi hoặc đang bị rate limit"
+        assert isinstance(result, list)
+        assert len(result) > 0, "API trả list rỗng"
+        coin = result[0]
+        assert "id" in coin
+        assert "symbol" in coin
+        assert "current_price" in coin
+        assert "image" in coin
+
+    @pytest.mark.integration
     def test_fetch_coin_detail_structure(self):
-        """Test #2: Fetch coin detail trả về dict đúng cấu trúc."""
+        """Test #2: Fetch coin detail trả về dict đúng cấu trúc (real API)."""
         result = fetch_coin_detail("bitcoin")
-        
-        if result is not None:
-            assert isinstance(result, dict)
-            # Có market_data.current_price.usd
-            if "market_data" in result:
-                assert "current_price" in result["market_data"]
-                assert "usd" in result["market_data"]["current_price"]
-                assert result["market_data"]["current_price"]["usd"] > 0
 
+        assert result is not None, "CoinGecko API không phản hồi hoặc đang bị rate limit"
+        assert isinstance(result, dict)
+        assert "market_data" in result
+        assert "current_price" in result["market_data"]
+        assert "usd" in result["market_data"]["current_price"]
+        assert result["market_data"]["current_price"]["usd"] > 0
+
+    @pytest.mark.integration
     def test_fetch_coin_history_structure(self):
-        """Test #3: Fetch coin history trả về dict đúng cấu trúc."""
+        """Test #3: Fetch coin history trả về dict đúng cấu trúc (real API)."""
         result = fetch_coin_history("bitcoin", 7)
-        
-        if result is not None:
-            assert isinstance(result, dict)
-            assert "prices" in result
-            assert isinstance(result["prices"], list)
-            # Kiểm tra đủ ~168 điểm (7 ngày × 24h)
-            if len(result["prices"]) > 0:
-                # Format: [[timestamp_ms, price], ...]
-                point = result["prices"][0]
-                assert isinstance(point, list)
-                assert len(point) == 2
-                assert isinstance(point[0], (int, float))
-                assert isinstance(point[1], (int, float))
+
+        assert result is not None, "CoinGecko API không phản hồi hoặc đang bị rate limit"
+        assert isinstance(result, dict)
+        assert "prices" in result
+        assert isinstance(result["prices"], list)
+        assert len(result["prices"]) > 0, "API trả prices rỗng"
+        # Format: [[timestamp_ms, price], ...]
+        point = result["prices"][0]
+        assert isinstance(point, list)
+        assert len(point) == 2
+        assert isinstance(point[0], (int, float))
+        assert isinstance(point[1], (int, float))
 
 
 class TestRetryLogic:

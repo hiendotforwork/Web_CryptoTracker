@@ -11,26 +11,9 @@ Các test case trong Task 2.1:
 """
 
 import pytest
-from app import create_app
+from sqlalchemy.exc import IntegrityError
 from app.database import db
 from app.models import User, Coin, Watchlist
-
-
-@pytest.fixture
-def app():
-    """Tạo app testing với SQLite in-memory."""
-    app = create_app("testing")
-    with app.app_context():
-        db.create_all()
-        yield app
-        db.drop_all()
-
-
-@pytest.fixture
-def session(app):
-    """Tạo database session cho test."""
-    with app.app_context():
-        yield db.session
 
 
 class TestUserPassword:
@@ -120,8 +103,11 @@ class TestWatchlistConstraint:
             watchlist2 = Watchlist(user_id=user.id, coin_id="bitcoin")
             db.session.add(watchlist2)
             
-            with pytest.raises(Exception):  # IntegrityError trong SQLAlchemy
+            with pytest.raises(IntegrityError):
                 db.session.commit()
+            
+            # Reset session sau IntegrityError để tránh InvalidRequestError
+            db.session.rollback()
 
 
 class TestCascadeDelete:
