@@ -30,4 +30,4 @@ COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 EXPOSE $PORT
 
 WORKDIR /app/backend
-CMD flask db upgrade && gunicorn run:app --bind 0.0.0.0:$PORT
+CMD flask db upgrade && gunicorn run:app --bind 0.0.0.0:$PORT --workers 1
