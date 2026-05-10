@@ -13,9 +13,12 @@ Lưu ý:
 
 import logging
 import time
+from datetime import datetime, timezone
 from typing import Optional
 
 import requests
+
+from app.models import db, Coin, PriceHistory
 
 # Cấu hình
 COINGECKO_API_URL = "https://api.coingecko.com/api/v3"
@@ -142,3 +145,114 @@ def fetch_coin_history(coin_id: str, days: int = 7) -> Optional[dict]:
     }
     
     return _get_with_retry(url, params)
+
+
+def _parse_date(date_str: str) -> Optional[datetime]:
+    """
+    Parse date string thành datetime.
+    Hỗ trợ nhiều format date, có fallback về None.
+    """
+    if not date_str:
+        return None
+
+    formats = [
+        "%Y-%m-%dT%H:%M:%S.%fZ",
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d",
+    ]
+
+    for fmt in formats:
+        try:
+            return datetime.strptime(date_str, fmt).replace(tzinfo=timezone.utc)
+        except ValueError:
+            continue
+
+    return None
+
+
+def fetch_and_save_coins() -> int:
+    """
+    Fetch top coins và lưu vào DB.
+    
+    Gọi API fetch_top_coins từ service coingecko.
+    Lưu/cập nhật thông tin từng coin vào bảng coins.
+    Lưu giá hiện tại vào bảng price_history.
+    Commit một lần sau vòng lặp.
+    
+    Returns:
+        Số coin được cập nhật thành công
+    """
+    try:
+        coins_data = fetch_top_coins(per_page=100)
+    except Exception as e:
+        logger.error(f"Lỗi khi gọi fetch_top_coins: {e}")
+        return 0
+
+    if not coins_data:
+        logger.warning("Không lấy được dữ liệu coins")
+        return 0
+
+    new_count = 0
+
+    for item in coins_data:
+        try:
+            coin_id = item.get("id")
+            if not coin_id:
+                continue
+
+            # Kiểm tra coin đã tồn tại chưa
+            coin = Coin.query.get(coin_id)
+            if not coin:
+                coin = Coin(id=coin_id)
+                db.session.add(coin)
+            
+            # Cập nhật thông tin coin
+            coin.name = item.get("name", "")
+            coin.symbol = item.get("symbol", "")
+            coin.image = item.get("image", "")
+            coin.current_price = item.get("current_price", 0)
+            coin.market_cap = item.get("market_cap", 0)
+            coin.market_cap_rank = item.get("market_cap_rank")
+            coin.volume = item.get("total_volume", 0)
+            coin.price_change_24h = item.get("price_change_24h", 0)
+            coin.price_change_percentage_24h = item.get("price_change_percentage_24h", 0)
+            coin.circulating_supply = item.get("circulating_supply", 0)
+            coin.total_supply = item.get("total_supply", 0)
+            coin.ath = item.get("ath", 0)
+            coin.ath_change_percentage = item.get("ath_change_percentage", 0)
+            
+            coin.ath_date = _parse_date(item.get("ath_date"))
+            
+            coin.atl = item.get("atl", 0)
+            coin.atl_change_percentage = item.get("atl_change_percentage", 0)
+            coin.atl_date = _parse_date(item.get("atl_date"))
+            
+            coin.last_updated = datetime.now(timezone.utc)
+
+            # Tạo record PriceHistory nếu có current_price
+            if coin.current_price is not None:
+                history = PriceHistory(
+                    coin_id=coin.id,
+                    price=coin.current_price,
+                    timestamp=datetime.now(timezone.utc)
+                )
+                db.session.add(history)
+
+            new_count += 1
+
+        except Exception as e:
+            logger.error(f"Lỗi khi xử lý coin {item.get('id')}: {e}")
+            continue
+
+    # Commit một lần sau vòng lặp
+    if new_count > 0:
+        try:
+            db.session.commit()
+            logger.info(f"Đã cập nhật {new_count} coins")
+        except Exception as e:
+            logger.error(f"Lỗi khi commit: {e}")
+            db.session.rollback()
+            return 0
+
+    return new_count

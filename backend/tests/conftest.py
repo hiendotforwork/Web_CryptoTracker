@@ -11,15 +11,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
-# -------------------------------------------------------
-# Mock app.services.crypto_coingecko TRƯỚC KHI import app
-# Module này chưa tồn tại (scheduler.py import nó ở module level).
-# Nếu không mock, mọi file test chạy riêng lẻ sẽ gặp ModuleNotFoundError.
-# -------------------------------------------------------
-if 'app.services.crypto_coingecko' not in sys.modules:
-    _mock_coingecko = MagicMock()
-    _mock_coingecko.fetch_and_save_coins = MagicMock(return_value=5)
-    sys.modules['app.services.crypto_coingecko'] = _mock_coingecko
+
 
 from app import create_app
 from app.database import db

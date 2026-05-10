@@ -22,15 +22,11 @@ import pytest
 
 
 # =====================================================
-# MOCK MODULE TRƯỚC KHI IMPORT
-# crypto_coingecko chưa tồn tại dưới dạng file riêng → mock để ngăn ImportError
-# khi app.scheduler được load (nó import from app.services.crypto_coingecko).
 # KHÔNG mock crypto_news vì module đó đã tồn tại thật.
 # =====================================================
 
 # =====================================================
 # IMPORTS
-# app.services.crypto_coingecko đã được mock ở conftest.py
 # =====================================================
 
 from app import create_app

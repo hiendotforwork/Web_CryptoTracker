@@ -10,9 +10,10 @@ Chỉ khởi chạy khi config_name != 'testing'.
 
 import atexit
 import logging
+# pyrefly: ignore [missing-import]
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from app.services.crypto_coingecko import fetch_and_save_coins
+from app.services.coingecko import fetch_and_save_coins
 from app.services.crypto_news import fetch_and_save_news
 
 logger = logging.getLogger(__name__)
