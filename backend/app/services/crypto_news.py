@@ -1,117 +1,216 @@
 """
 Crypto News Service.
 
-Module này cung cấp hàm để fetch tin tức crypto từ API:
-- fetch_and_save_news(): Fetch và lưu tin tức vào DB
+What: Fetch tin tức crypto từ RSS feeds của các nguồn uy tín
+Why: cryptocurrency.cv/api/news đã chuyển sang paid (HTTP 402)
+How: Parse RSS XML từ CoinDesk + CoinTelegraph bằng stdlib xml.etree
 
-Lưu ý:
-- Commit một lần sau vòng lặp, không commit từng item
-- Bỏ qua URL đã có trong DB
+Nguồn:
+- CoinDesk: https://feeds.feedburner.com/CoinDesk
+- CoinTelegraph: https://cointelegraph.com/rss
 """
 
 import logging
 from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 from typing import Optional
+import xml.etree.ElementTree as ET
 
 import requests
 
 from app.models import db, News
 
-# Cấu hình
-NEWS_API_URL = "https://cryptocurrency.cv/api/news"
-TIMEOUT = 10  # giây
-
 logger = logging.getLogger(__name__)
 
+# Cấu hình: các RSS feed nguồn tin tức crypto uy tín
+RSS_FEEDS = [
+    {
+        "url": "https://feeds.feedburner.com/CoinDesk",
+        "source": "CoinDesk",
+    },
+    {
+        "url": "https://cointelegraph.com/rss",
+        "source": "CoinTelegraph",
+    },
+]
 
-def _parse_date(date_str: str) -> Optional[datetime]:
+TIMEOUT = 15  # giây
+
+
+def _parse_rss_date(date_str: str) -> Optional[datetime]:
     """
-    Parse date string thành datetime.
-
-    Hỗ trợ nhiều format date, có fallback về datetime.now().
+    Parse chuỗi date theo chuẩn RFC 2822 (dùng trong RSS).
 
     Args:
-        date_str: Chuỗi date cần parse
+        date_str: Ví dụ "Sat, 09 May 2026 17:28:08 +0000"
 
     Returns:
-        datetime object hoặc None nếu parse fail
+        datetime aware (UTC) hoặc None nếu parse fail
     """
     if not date_str:
         return None
+    try:
+        return parsedate_to_datetime(date_str)
+    except Exception:
+        logger.warning(f"Không parse được date RSS: {date_str!r}")
+        return None
 
-    # Các format date thử theo thứ tự
-    formats = [
-        "%Y-%m-%dT%H:%M:%S.%fZ",  # 2024-01-01T12:00:00.000Z
-        "%Y-%m-%dT%H:%M:%SZ",     # 2024-01-01T12:00:00Z
-        "%Y-%m-%d %H:%M:%S",       # 2024-01-01 12:00:00
-        "%Y-%m-%d",                # 2024-01-01
-    ]
 
-    for fmt in formats:
+def _get_media_url(item: ET.Element, ns: dict) -> Optional[str]:
+    """
+    Lấy URL ảnh từ media:content element trong RSS item.
+
+    Args:
+        item: XML element <item>
+        ns: namespace mapping
+
+    Returns:
+        URL ảnh hoặc None
+    """
+    # Thử media:content
+    media = item.find("media:content", ns)
+    if media is not None:
+        return media.get("url")
+
+    # Thử enclosure
+    enclosure = item.find("enclosure")
+    if enclosure is not None:
+        enc_type = enclosure.get("type", "")
+        if enc_type.startswith("image"):
+            return enclosure.get("url")
+
+    return None
+
+
+def _fetch_rss_items(feed_url: str, source_name: str) -> list[dict]:
+    """
+    Fetch và parse một RSS feed.
+
+    Args:
+        feed_url: URL của RSS feed
+        source_name: Tên nguồn (dùng làm field source trong DB)
+
+    Returns:
+        List các dict với các keys: title, url, description, image_url,
+        published_at, source
+    """
+    try:
+        response = requests.get(
+            feed_url,
+            timeout=TIMEOUT,
+            headers={"User-Agent": "CryptoTracker/1.0 (+https://github.com)"},
+        )
+        response.raise_for_status()
+    except requests.RequestException as e:
+        logger.error(f"Lỗi khi fetch RSS {source_name}: {e}")
+        return []
+
+    try:
+        root = ET.fromstring(response.content)
+    except ET.ParseError as e:
+        logger.error(f"Lỗi parse XML từ {source_name}: {e}")
+        return []
+
+    # Namespace mapping cho media:content
+    ns = {
+        "media": "http://search.yahoo.com/mrss/",
+        "dc": "http://purl.org/dc/elements/1.1/",
+        "content": "http://purl.org/rss/1.0/modules/content/",
+    }
+
+    items = []
+
+    # Tìm tất cả <item> trong RSS channel
+    channel = root.find("channel")
+    if channel is None:
+        logger.warning(f"{source_name}: Không tìm thấy <channel> trong RSS")
+        return []
+
+    for item_el in channel.findall("item"):
         try:
-            return datetime.strptime(date_str, fmt).replace(tzinfo=timezone.utc)
-        except ValueError:
+            # Lấy các field từ XML element
+            title_el = item_el.find("title")
+            link_el = item_el.find("link")
+            desc_el = item_el.find("description")
+            pub_el = item_el.find("pubDate")
+
+            title = title_el.text if title_el is not None else ""
+            url = link_el.text if link_el is not None else ""
+            description = desc_el.text if desc_el is not None else ""
+
+            # Bỏ qua item không có URL
+            if not url or not url.strip():
+                continue
+
+            url = url.strip()
+
+            # Parse ngày đăng
+            published_at = None
+            if pub_el is not None and pub_el.text:
+                published_at = _parse_rss_date(pub_el.text.strip())
+            if published_at is None:
+                published_at = datetime.now(timezone.utc)
+
+            # Lấy ảnh thumbnail
+            image_url = _get_media_url(item_el, ns)
+
+            items.append({
+                "title": title.strip() if title else "",
+                "url": url,
+                "description": description.strip() if description else None,
+                "image_url": image_url,
+                "published_at": published_at,
+                "source": source_name,
+            })
+
+        except Exception as e:
+            logger.error(f"Lỗi xử lý RSS item từ {source_name}: {e}")
             continue
 
-    # Fallback: trả None để dùng datetime.now() ở caller
-    logger.warning(f"Không parse được date: {date_str}")
-    return None
+    logger.info(f"Đã parse {len(items)} items từ {source_name}")
+    return items
 
 
 def fetch_and_save_news() -> int:
     """
-    Fetch tin tức crypto và lưu vào DB.
+    Fetch tin tức từ tất cả RSS feeds và lưu vào DB.
 
-    Gọi API, parse response, bỏ qua URL đã có.
-    Commit một lần sau vòng lặp.
+    Logic:
+    - Fetch từ CoinDesk + CoinTelegraph
+    - Bỏ qua URL đã tồn tại trong DB
+    - Commit một lần sau toàn bộ vòng lặp
 
     Returns:
-        Số tin mới được lưu
+        Số tin mới được lưu vào DB
     """
-    try:
-        response = requests.get(NEWS_API_URL, timeout=TIMEOUT)
-        response.raise_for_status()
-        news_data = response.json()
-    except requests.RequestException as e:
-        logger.error(f"Lỗi khi gọi News API: {e}")
-        return 0
+    all_items: list[dict] = []
 
-    if not isinstance(news_data, list):
-        logger.warning("Response không phải list")
+    # Fetch từ tất cả nguồn RSS
+    for feed in RSS_FEEDS:
+        items = _fetch_rss_items(feed["url"], feed["source"])
+        all_items.extend(items)
+
+    if not all_items:
+        logger.warning("Không lấy được tin tức từ bất kỳ nguồn nào")
         return 0
 
     new_count = 0
 
-    for item in news_data:
+    for item in all_items:
         try:
-            # Lấy URL để kiểm tra trùng
-            url = item.get("url")
-            if not url:
+            url = item["url"]
+
+            # Bỏ qua nếu URL đã có trong DB
+            if News.query.filter_by(url=url).first():
                 continue
 
-            # Kiểm tra đã tồn tại chưa
-            existing = News.query.filter_by(url=url).first()
-            if existing:
-                continue
-
-            # Parse date
-            published_at = _parse_date(item.get("published_at"))
-            if published_at is None:
-                published_at = datetime.now(timezone.utc)
-
-            # Xử lý source (có thể là string hoặc dict)
-            source = item.get("source")
-            if isinstance(source, dict):
-                source = source.get("name", "")
-
-            # Tạo news mới
             news = News(
-                title=item.get("title", ""),
+                title=item["title"],
                 url=url,
-                source=source,
+                source=item["source"],
                 description=item.get("description"),
                 image_url=item.get("image_url"),
-                published_at=published_at,
+                published_at=item["published_at"],
             )
             db.session.add(news)
             new_count += 1
@@ -120,13 +219,13 @@ def fetch_and_save_news() -> int:
             logger.error(f"Lỗi khi xử lý tin: {e}")
             continue
 
-    # Commit một lần sau vòng lặp
+    # Commit một lần sau vòng lặp (hiệu quả hơn commit từng record)
     if new_count > 0:
         try:
             db.session.commit()
-            logger.info(f"Đã lưu {new_count} tin mới")
+            logger.info(f"Đã lưu {new_count} tin mới vào DB")
         except Exception as e:
-            logger.error(f"Lỗi khi commit: {e}")
+            logger.error(f"Lỗi khi commit news: {e}")
             db.session.rollback()
             return 0
 
