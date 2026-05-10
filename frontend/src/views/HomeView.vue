@@ -19,13 +19,25 @@
       
       <div class="content" v-else>
         <div class="search-bar">
-          <input 
-            type="text" 
-            v-model="searchQuery" 
-            placeholder="Tìm kiếm coin..."
-            class="search-input"
-            @input="handleSearch"
-          />
+          <div class="search-wrapper">
+            <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input 
+              type="text" 
+              v-model="searchQuery" 
+              placeholder="Tìm kiếm coin..."
+              class="search-input"
+              @input="handleSearch"
+            />
+            <button v-if="searchQuery" class="search-clear" @click="clearSearch">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
         </div>
         
         <div class="coin-table">
@@ -93,7 +105,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { api } from '@/services/api'
@@ -108,12 +120,19 @@ const error = ref(null)
 const searchQuery = ref('')
 const currentPage = ref(1)
 const totalPages = ref(1)
+const searchTimer = ref(null)
 
 // Computed
 const isAuthenticated = computed(() => authStore.isAuthenticated)
 
+/**
+ * Chỉ hiện coins sau khi search (không phân trang khi search)
+ * Search không dùng pagination - lọc local
+ */
 const filteredCoins = computed(() => {
-  if (!searchQuery.value) return coins.value
+  if (!searchQuery.value) {
+    return coins.value
+  }
   const query = searchQuery.value.toLowerCase()
   return coins.value.filter(coin => 
     coin.name.toLowerCase().includes(query) ||
@@ -132,7 +151,19 @@ function goToCoinDetail(coinId) {
 }
 
 function handleSearch() {
+  // Debounce 300ms - xóa timer cũ và tạo timer mới
+  if (searchTimer.value) {
+    clearTimeout(searchTimer.value)
+  }
+  searchTimer.value = setTimeout(() => {
+    currentPage.value = 1
+  }, 300)
+}
+
+function clearSearch() {
+  searchQuery.value = ''
   currentPage.value = 1
+  fetchCoins(currentPage.value)
 }
 
 function changePage(page) {
@@ -169,6 +200,13 @@ function addToWatchlist(coinId) {
 onMounted(() => {
   fetchCoins()
 })
+
+// Cleanup timer when component unmounts
+onUnmounted(() => {
+  if (searchTimer.value) {
+    clearTimeout(searchTimer.value)
+  }
+})
 </script>
 
 <style scoped>
@@ -195,28 +233,65 @@ onMounted(() => {
 }
 
 .search-bar {
-  margin-bottom: var(--spacing-lg);
+  margin-bottom: var(--spacing-xl);
+}
+
+.search-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  width: 100%;
+  max-width: 450px;
+}
+
+.search-icon {
+  position: absolute;
+  left: var(--spacing-md);
+  width: 20px;
+  height: 20px;
+  color: var(--color-text-secondary);
+  pointer-events: none;
 }
 
 .search-input {
   width: 100%;
-  max-width: 400px;
-  padding: var(--spacing-md);
+  padding: var(--spacing-md) var(--spacing-xl);
+  padding-left: 48px;
   background: var(--color-bg-secondary);
   border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
+  border-radius: var(--radius-lg);
   color: var(--color-text-primary);
   font-size: var(--font-size-base);
-  transition: border-color var(--transition-fast);
+  transition: all var(--transition-fast);
 }
 
 .search-input:focus {
   outline: none;
-  border-color: var(--color-primary);
+  border-color: var(--color-primary-light);
+  box-shadow: 0 0 0 3px rgba(138, 180, 196, 0.2);
 }
 
 .search-input::placeholder {
   color: var(--color-text-secondary);
+}
+
+.search-clear {
+  position: absolute;
+  right: var(--spacing-md);
+  padding: var(--spacing-xs);
+  color: var(--color-text-secondary);
+  border-radius: var(--radius-sm);
+  transition: all var(--transition-fast);
+}
+
+.search-clear svg {
+  width: 18px;
+  height: 18px;
+}
+
+.search-clear:hover {
+  color: var(--color-text-primary);
+  background: rgba(138, 180, 196, 0.1);
 }
 
 .coin-table {

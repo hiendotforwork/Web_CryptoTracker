@@ -21,6 +21,7 @@ coins_bp = Blueprint("coins", __name__)
 
 # Cấu hình phân trang
 COINS_PER_PAGE = 25
+INITIAL_PAGES_TO_FETCH = 4  # Số pages fetch ban đầu khi DB trống
 
 
 @coins_bp.route("/", methods=["GET"])
@@ -40,23 +41,45 @@ def get_coins():
     # Query từ DB trước
     query = Coin.query.order_by(Coin.market_cap_rank.asc().nullslast())
 
-    # Tính tổng số coins
+    # Tính tổng số coins trong DB
     total = query.count()
-    total_pages = (total + per_page - 1) // per_page
+    
+    # Tính total_pages dựa trên DB hiện tại
+    if total > 0:
+        total_pages = max(1, (total + per_page - 1) // per_page)
+    else:
+        # DB trống → fetch INITIAL_PAGES để user có data browse ngay
+        total_pages = INITIAL_PAGES_TO_FETCH
+        
+        for page_num in range(1, INITIAL_PAGES_TO_FETCH + 1):
+            coins_data = fetch_top_coins(page_num, per_page)
+            if coins_data:
+                for coin_data in coins_data:
+                    _upsert_coin(coin_data)
+        
+        # Đếm lại sau khi fetch
+        total = Coin.query.count()
+        # Tổng số pages = số coins đã fetch / per_page
+        total_pages = max(1, (total + per_page - 1) // per_page)
 
-    # Nếu DB trống, gọi API lấy dữ liệu
-    if total == 0:
+    # Lấy dữ liệu trang hiện tại
+    coins = query.offset((page - 1) * per_page).limit(per_page).all()
+    
+    # Nếu page hiện tại không có data, thử fetch từ API
+    if len(coins) == 0 and page > 1:
         coins_data = fetch_top_coins(page, per_page)
         if coins_data:
             for coin_data in coins_data:
                 _upsert_coin(coin_data)
             # Query lại sau khi upsert
-            query = Coin.query.order_by(Coin.market_cap_rank.asc().nullslast())
-            total = query.count()
-            total_pages = (total + per_page - 1) // per_page
-
-    # Lấy dữ liệu trang hiện tại
-    coins = query.offset((page - 1) * per_page).limit(per_page).all()
+            coins = Coin.query.order_by(Coin.market_cap_rank.asc().nullslast()) \
+                .offset((page - 1) * per_page).limit(per_page).all()
+            
+            # Cập nhật total dựa trên coins thực tế trong DB
+            total = Coin.query.count()
+            # Nếu có thêm data mới, cập nhật total_pages
+            if total > per_page:
+                total_pages = max(total_pages, (total + per_page - 1) // per_page)
 
     return jsonify({
         "coins": [coin.to_dict() for coin in coins],

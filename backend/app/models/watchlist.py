@@ -38,7 +38,7 @@ class Watchlist(db.Model):
         nullable=False
     )
     coin_id: str = db.Column(
-        db.String(50),
+        db.String(100),
         db.ForeignKey("coins.id", ondelete="CASCADE"),
         nullable=False
     )

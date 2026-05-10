@@ -35,10 +35,10 @@ class Coin(db.Model):
     __tablename__ = "coins"
 
     # Columns
-    id: str = db.Column(db.String(50), primary_key=True)  # coin id từ CoinGecko (vd: bitcoin)
-    name: str = db.Column(db.String(100), nullable=False, index=True)
+    id: str = db.Column(db.String(100), primary_key=True)  # coin id từ CoinGecko (vd: bitcoin)
+    name: str = db.Column(db.String(255), nullable=False, index=True)
     symbol: str = db.Column(db.String(20), nullable=False, index=True)  # viết thường (vd: btc)
-    image: str = db.Column(db.String(255))
+    image: str = db.Column(db.String(512))
     current_price: float = db.Column(db.Numeric(20, 8), default=0)
     market_cap: float = db.Column(db.Numeric(30, 2), default=0)
     market_cap_rank: int = db.Column(db.Integer)

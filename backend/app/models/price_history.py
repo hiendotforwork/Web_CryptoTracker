@@ -25,7 +25,7 @@ class PriceHistory(db.Model):
     # Columns
     id: int = db.Column(db.Integer, primary_key=True)
     coin_id: str = db.Column(
-        db.String(50),
+        db.String(100),
         db.ForeignKey("coins.id", ondelete="CASCADE"),
         nullable=False,
         index=True
