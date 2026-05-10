@@ -19,7 +19,13 @@ export default defineConfig({
     }
   },
   test: {
+    // Môi trường DOM giả lập — cần thiết để mount Vue component
     environment: 'jsdom',
-    globals: true
+    // Cho phép dùng describe/it/expect mà không cần import mỗi file
+    globals: true,
+    // Thừa hưởng alias '@/' từ resolve.alias phía trên
+    alias: {
+      '@': path.resolve(__dirname, './src')
+    }
   }
 })

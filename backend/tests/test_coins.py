@@ -155,3 +155,108 @@ class TestSearch:
         data = response.get_json()
         assert "error" in data
         assert "không được để trống" in data["error"].lower() or "q" in data["error"].lower()
+
+    def test_search_not_in_db(self, client, sample_coins):
+        """Test tìm kiếm coin không có trong DB."""
+        response = client.get("/api/coins/search?q=notexistxyz")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert "coins" in data
+        assert len(data["coins"]) == 0
+
+
+# =====================================================
+# EXTRA COVERAGE TESTS
+# =====================================================
+
+class TestCoinsCoverage:
+    """Các test case bổ sung để tăng coverage cho coins.py."""
+
+    @patch("app.routes.coins.fetch_top_coins")
+    def test_get_coins_empty_db(self, mock_fetch, client, app):
+        """Test phân trang khi DB trống (gọi API)."""
+        # Không dùng fixture sample_coins
+        with app.app_context():
+            db.session.query(Coin).delete()
+            db.session.commit()
+            
+            # Giả lập trả về dữ liệu mock
+            mock_fetch.return_value = [
+                {"id": "new-coin", "name": "New Coin", "symbol": "new", "current_price": 10}
+            ]
+            
+            response = client.get("/api/coins/?page=1")
+            assert response.status_code == 200
+            data = response.get_json()
+            assert "total_pages" in data
+            
+            # DB trống sẽ gọi fetch INITIAL_PAGES_TO_FETCH lần (4 lần)
+            assert mock_fetch.call_count > 0
+
+    @patch("app.routes.coins.fetch_top_coins")
+    def test_get_coins_page_no_data(self, mock_fetch, client, sample_coins):
+        """Test phân trang khi trang > 1 và không có dữ liệu, phải gọi API."""
+        mock_fetch.return_value = [
+            {"id": "new-coin-2", "name": "New Coin 2", "symbol": "nc2", "current_price": 20}
+        ]
+        
+        # page 10 chắc chắn rỗng
+        response = client.get("/api/coins/?page=10")
+        assert response.status_code == 200
+        assert mock_fetch.called
+
+    @patch("app.routes.coins.fetch_coin_detail")
+    def test_get_coin_detail_api(self, mock_fetch, client):
+        """Test lấy detail coin qua API (không có trong DB)."""
+        mock_fetch.return_value = {
+            "id": "fetched-coin",
+            "name": "Fetched",
+            "symbol": "fc",
+            "market_data": {
+                "current_price": {"usd": 15}
+            }
+        }
+        
+        response = client.get("/api/coins/fetched-coin")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data["coin"]["id"] == "fetched-coin"
+
+    @patch("app.routes.coins.fetch_coin_history")
+    @patch("app.routes.coins.fetch_coin_detail")
+    def test_get_coin_history_not_in_db(self, mock_detail, mock_history, client):
+        """Test lịch sử cho coin không có trong DB."""
+        mock_detail.return_value = {"id": "hist-coin", "name": "Hist", "symbol": "hc"}
+        mock_history.return_value = {"prices": [[1000, 10], [2000, 20]]}
+        
+        response = client.get("/api/coins/hist-coin/history")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert len(data["prices"]) == 2
+
+    @patch("app.routes.coins.fetch_coin_history")
+    @patch("app.routes.coins.fetch_coin_detail")
+    def test_get_coin_history_not_found(self, mock_detail, mock_history, client):
+        """Test lịch sử cho coin không có trong DB và API detail lỗi."""
+        mock_detail.return_value = None
+        
+        response = client.get("/api/coins/hist-coin/history")
+        assert response.status_code == 404
+
+    @patch("app.routes.coins.fetch_coin_history")
+    def test_get_coin_history_fallback_db(self, mock_history, client, sample_coins, app):
+        """Test fallback lấy lịch sử từ DB khi API history rỗng."""
+        mock_history.return_value = None
+        
+        # Thêm price history giả vào DB
+        with app.app_context():
+            from app.models import PriceHistory
+            from datetime import datetime, timezone
+            db.session.add(PriceHistory(coin_id="bitcoin", price=40000, timestamp=datetime.now(timezone.utc)))
+            db.session.commit()
+
+        response = client.get("/api/coins/bitcoin/history")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert len(data["prices"]) == 1
+        assert data["prices"][0][1] == 40000.0

@@ -41,12 +41,16 @@ def create_app(config_name: str = "development"):
     """
     # Import config ở đây để tránh circular import
     from config import config_by_name
+    import os
 
     # Lấy class config tương ứng
     config_class = config_by_name.get(config_name, config_by_name["default"])
 
-    # Tạo Flask app
-    app = Flask(__name__)
+    # Đường dẫn tới thư mục build của Vue (frontend/dist)
+    frontend_dist = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "frontend", "dist"))
+
+    # Tạo Flask app có phục vụ file tĩnh từ frontend/dist
+    app = Flask(__name__, static_folder=frontend_dist, static_url_path="/")
     app.config.from_object(config_class)
 
     # Thiết lập logging
@@ -103,15 +107,16 @@ def _init_extensions(app: Flask):
 def _register_routes(app: Flask):
     """Đăng ký các blueprints/routes cho ứng dụng."""
     from app.routes import auth_bp, coins_bp, news_bp, watchlist_bp
+    import os
 
-    # Health check route
-    @app.route("/")
-    def index():
-        """Route health check trả về trạng thái API."""
-        return jsonify({
-            "message": "Crypto Tracker API",
-            "status": "running"
-        })
+    # Route serve Vue SPA (Catch-all route)
+    @app.route('/', defaults={'path': ''})
+    @app.route('/<path:path>')
+    def serve_vue(path):
+        """Phục vụ file tĩnh của Vue SPA hoặc index.html cho các route không phải API."""
+        if path != "" and os.path.exists(os.path.join(app.static_folder, path)):
+            return app.send_static_file(path)
+        return app.send_static_file('index.html')
 
     # Đăng ký blueprints
     app.register_blueprint(auth_bp, url_prefix="/api/auth")

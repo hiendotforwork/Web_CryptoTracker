@@ -126,3 +126,85 @@ class TestRetryLogic:
         # Chỉ gọi 1 lần, không retry
         assert mock_get.call_count == 1
         assert result == {"data": "test"}
+
+    @patch("app.services.coingecko.requests.get")
+    def test_other_status_code(self, mock_get):
+        """Test status code 404 trả về None."""
+        mock_response = MagicMock()
+        mock_response.status_code = 404
+        mock_get.return_value = mock_response
+        
+        result = _get_with_retry("http://test.com/api", max_retries=1)
+        assert result is None
+
+    @patch("app.services.coingecko.requests.get")
+    def test_general_exception(self, mock_get):
+        """Test request raise Exception chung."""
+        mock_get.side_effect = Exception("Some error")
+        
+        result = _get_with_retry("http://test.com/api", max_retries=1)
+        assert result is None
+
+
+from app.services.coingecko import _parse_date, fetch_and_save_coins
+
+class TestParseDate:
+    """Test parse date utils."""
+    def test_parse_date_valid(self):
+        d = _parse_date("2024-01-01T12:00:00Z")
+        assert d is not None
+        assert d.year == 2024
+        
+        d = _parse_date("2024-01-01 12:00:00")
+        assert d is not None
+
+    def test_parse_date_invalid(self):
+        assert _parse_date("invalid") is None
+        assert _parse_date(None) is None
+
+
+class TestFetchAndSaveCoins:
+    """Test fetch_and_save_coins logic."""
+
+    @patch("app.services.coingecko.fetch_top_coins")
+    def test_fetch_and_save_success(self, mock_fetch, app):
+        """Test save data db."""
+        mock_fetch.return_value = [
+            {
+                "id": "bitcoin",
+                "name": "Bitcoin",
+                "symbol": "btc",
+                "current_price": 50000,
+                "market_cap": 1000000000,
+                "ath_date": "2021-11-10T14:24:11.849Z",
+                "atl_date": "2013-07-05T00:00:00.000Z"
+            }
+        ]
+        from app.models import Coin, PriceHistory
+        with app.app_context():
+            count = fetch_and_save_coins()
+            assert count == 1
+            
+            coin = Coin.query.get("bitcoin")
+            assert coin is not None
+            assert coin.current_price == 50000
+            
+            history = PriceHistory.query.filter_by(coin_id="bitcoin").first()
+            assert history is not None
+            assert history.price == 50000
+
+    @patch("app.services.coingecko.fetch_top_coins")
+    def test_fetch_and_save_empty(self, mock_fetch, app):
+        """Test return 0 khi không có data."""
+        mock_fetch.return_value = []
+        with app.app_context():
+            count = fetch_and_save_coins()
+            assert count == 0
+
+    @patch("app.services.coingecko.fetch_top_coins")
+    def test_fetch_and_save_exception(self, mock_fetch, app):
+        """Test return 0 khi API lỗi."""
+        mock_fetch.side_effect = Exception("API error")
+        with app.app_context():
+            count = fetch_and_save_coins()
+            assert count == 0
