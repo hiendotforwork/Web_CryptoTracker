@@ -14,6 +14,18 @@ import os
 from datetime import timedelta
 
 
+def _fix_database_url(url: str | None) -> str | None:
+    """
+    Chuyển đổi URL từ postgres:// → postgresql://.
+
+    Railway PostgreSQL cấp URL dạng postgres:// nhưng SQLAlchemy 2.x
+    đã xoá hỗ trợ prefix này, chỉ chấp nhận postgresql://.
+    """
+    if url and url.startswith("postgres://"):
+        return url.replace("postgres://", "postgresql://", 1)
+    return url
+
+
 class Config:
     """Class cấu hình base chứa các cài đặt chung."""
 
@@ -47,10 +59,8 @@ class DevelopmentConfig(Config):
     DEBUG: bool = True
     TESTING: bool = False
 
-    # Database URL cho development
-    SQLALCHEMY_DATABASE_URI: str = os.environ.get(
-        "DATABASE_URL",
-    )
+    # Database URL cho development (có convert postgres:// → postgresql://)
+    SQLALCHEMY_DATABASE_URI: str = _fix_database_url(os.environ.get("DATABASE_URL"))
 
     # Cài đặt riêng cho development
     SQLALCHEMY_ECHO: bool = False  # Đặt thành True để xem SQL queries trong log
@@ -83,7 +93,8 @@ class ProductionConfig(Config):
     TESTING: bool = False
 
     # Database URL cho production - PHẢI set qua environment variable
-    SQLALCHEMY_DATABASE_URI: str = os.environ.get("DATABASE_URL", "")
+    # Railway cấp dạng postgres://, cần convert sang postgresql:// cho SQLAlchemy 2.x
+    SQLALCHEMY_DATABASE_URI: str = _fix_database_url(os.environ.get("DATABASE_URL", ""))
 
     # Cài đặt riêng cho production
     SQLALCHEMY_ECHO: bool = False

@@ -27,7 +27,11 @@ COPY backend/ ./backend/
 # Copy frontend build từ Stage 1
 COPY --from=frontend-build /app/frontend/dist ./frontend/dist
 
+# Biến môi trường cần thiết để Flask tìm đúng app và chạy với config production
+ENV FLASK_APP=run:app
+ENV FLASK_ENV=production
+
 EXPOSE $PORT
 
 WORKDIR /app/backend
-CMD flask db upgrade && gunicorn run:app --bind 0.0.0.0:$PORT --workers 1
+ENTRYPOINT ["sh", "entrypoint.sh"]

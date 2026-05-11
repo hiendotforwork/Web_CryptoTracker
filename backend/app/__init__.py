@@ -93,8 +93,13 @@ def _init_extensions(app: Flask):
     # JWT
     jwt.init_app(app)
 
-    # CORS - cho phép tất cả origins trong development
-    cors_origins = "*" if app.config.get("DEBUG") else app.config.get("CORS_ORIGINS", "")
+    # CORS — production: nếu không set CORS_ORIGINS, mặc định "*" vì
+    # frontend được serve cùng origin qua Flask static. Không để "" (empty)
+    # vì Flask-CORS sẽ block tất cả cross-origin requests.
+    if app.config.get("DEBUG"):
+        cors_origins = "*"
+    else:
+        cors_origins = app.config.get("CORS_ORIGINS", "*")
     CORS(app, resources={r"/api/*": {"origins": cors_origins}})
 
     # Limiter
