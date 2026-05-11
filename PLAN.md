@@ -4,6 +4,66 @@
 > **Môi trường**: Python 3.12.3 | Node v22.22.2 | PostgreSQL local (dev) → Railway (prod)
 > **Package Manager**: `pnpm` (frontend) | `pip` trong `.venv` (backend)
 > **Testing**: Manual + Unit test cơ bản (pytest, vitest)
+
+---
+
+## ⚠️ Quy tắc Môi trường Bắt buộc (AI phải tuân thủ)
+
+> [!IMPORTANT]
+> **Quy tắc tách biệt môi trường**: Backend Python và Frontend Node.js **KHÔNG được chạy lẫn môi trường**.
+
+### Khi làm việc với Backend
+```bash
+# Kích hoạt môi trường ảo Python TRƯỚC KHI chạy bất kỳ lệnh Flask/pip nào
+cd backend
+source .venv/bin/activate        # Linux/macOS
+.venv\Scripts\activate           # Windows
+
+# Kiểm tra môi trường đúng chưa (phải thấy đường dẫn .venv)
+which python   # → .../backend/.venv/bin/python
+```
+
+### Khi làm việc với Frontend
+```bash
+# ⛔ PHẢI THOÁT môi trường ảo Python TRƯỚC KHI chạy pnpm/node
+deactivate     # Thoát .venv nếu đang active
+
+# Kiểm tra đã thoát chưa: dòng terminal không còn tiền tố (.venv)
+cd frontend
+pnpm install   # hoặc pnpm run dev / pnpm run build
+```
+
+> **Lý do**: Nếu đang active `.venv` mà chạy `pnpm`, một số hệ thống sẽ nhầm lẫn PATH, dẫn đến lỗi khó debug. AI phải luôn kiểm tra trạng thái môi trường trước khi chạy lệnh.
+
+---
+
+## 📐 Tiêu chuẩn Chất lượng Mã nguồn (Áp dụng cho mọi Task)
+
+> AI phải đảm bảo các tiêu chuẩn này khi sinh mã trong **tất cả** các task.
+
+### Backend (Python / Flask)
+- **Naming**: snake_case cho biến/hàm, PascalCase cho class
+- **Docstring**: Mỗi function/class phải có docstring ngắn mô tả chức năng
+- **Type hint**: Khuyến khích dùng type hints cho tham số và return value
+- **Error handling**: Mọi đoạn gọi DB hoặc external API đều phải có `try/except`, không để lỗi crash server
+- **HTTP status code**: Dùng đúng mã (200, 201, 400, 401, 404, 409, 503), không dùng 200 cho lỗi
+- **Response format nhất quán**:
+  - Thành công: `{"data": ..., "message": "..."}` hoặc `{"coins": [...], "page": 1}`
+  - Lỗi: `{"error": "Mô tả lỗi rõ ràng"}`
+- **Không hardcode**: Dùng biến môi trường (`.env`) cho SECRET_KEY, DATABASE_URL, API keys
+- **Không commit secret**: File `.env` phải có trong `.gitignore`
+- **Blueprint tách module**: Mỗi nhóm route là 1 Blueprint riêng biệt
+
+### Frontend (Vue 3 / JavaScript)
+- **Naming**: camelCase cho biến/hàm, PascalCase cho component
+- **Component tách nhỏ**: Mỗi component chỉ làm 1 việc (Single Responsibility)
+- **Props validation**: Mọi prop đều phải khai báo kiểu dữ liệu (`type`, `required`, `default`)
+- **Composition API**: Dùng `<script setup>` thay vì Options API
+- **Xử lý loading/error**: Mọi API call phải có state `isLoading` và hiển thị lỗi ra UI
+- **Không gọi API trực tiếp trong component**: Đặt tất cả API call trong `stores/` hoặc `services/api.js`
+- **CSS**: Dùng CSS variables (`:root`) cho màu sắc, không hardcode màu trong component
+- **Accessibility cơ bản**: Các button phải có `aria-label`, `<img>` phải có `alt`
+
 ---
 
 ## Giai đoạn 1: Khởi tạo Dự án & Cấu hình Môi trường
@@ -95,7 +155,15 @@ Lệnh chạy:
 > **Tại sao dùng pnpm?** Nhanh hơn npm/yarn, tiết kiệm disk nhờ symlink, `pnpm-lock.yaml` đảm bảo version nhất quán giữa các máy.
 
 > **Mẫu CSS variables trong `:root`**:
-Sử dụng bảng màu #0d1a26, #1a3a5c, #3d6b8a, #8ab4c4, #e8f0f5
+> ```css
+> :root {
+>   --color-black:  #000000;
+>   --color-white:  #ffffff;
+>   --color-red:    #dd0100;
+>   --color-yellow: #fac901;
+>   --color-blue:   #225095;
+> }
+> ```
 > Các component chỉ dùng `var(--color-*)`, không hardcode mã hex trực tiếp.
 
 **✅ Tiêu chuẩn chất lượng cần đảm bảo:**
@@ -358,6 +426,93 @@ Kết quả terminal mong đợi:
 ```
 
 **Kết quả mong đợi:** Login trả JWT, token dùng được cho các API cần auth.
+
+---
+
+### Task 3.3: API Quản lý Tài khoản (`/api/auth/account`)
+
+**Công việc:**
+
+- Thêm 3 endpoint vào `app/routes/auth.py`, tất cả đều có `@jwt_required()`:
+  - `PUT /api/auth/account/username` — đổi tên đăng nhập
+  - `PUT /api/auth/account/password` — đổi mật khẩu
+  - `DELETE /api/auth/account` — xóa tài khoản
+- **Yêu cầu xác thực lại**: Cả 3 endpoint đều yêu cầu người dùng cung cấp **`current_password`** trong request body để xác nhận danh tính trước khi thực hiện thay đổi
+- Sau khi thực hiện thành công bất kỳ thao tác nào, backend trả về HTTP 200 kèm `{"require_relogin": true}` — frontend phải xử lý bằng cách xóa token và redirect về `/auth`
+- **Đổi username**: kiểm tra username mới không trùng với user khác trong DB
+- **Đổi password**: yêu cầu `new_password` tối thiểu 6 ký tự, khác `current_password`
+- **Xóa tài khoản**: xóa toàn bộ dữ liệu liên quan (watchlist cascade), sau đó xóa user
+
+> **Mẫu request đổi username** (HTTP 200):
+> ```json
+> Body:   { "new_username": "alice_new", "current_password": "pass123" }
+> Response: { "message": "Đổi tên đăng nhập thành công. Vui lòng đăng nhập lại.", "require_relogin": true }
+> ```
+
+> **Mẫu request đổi password** (HTTP 200):
+> ```json
+> Body:   { "current_password": "pass123", "new_password": "newpass456" }
+> Response: { "message": "Đổi mật khẩu thành công. Vui lòng đăng nhập lại.", "require_relogin": true }
+> ```
+
+> **Mẫu request xóa tài khoản** (HTTP 200):
+> ```json
+> Body:   { "current_password": "pass123" }
+> Response: { "message": "Tài khoản đã được xóa vĩnh viễn." }
+> ```
+
+**✅ Tiêu chuẩn chất lượng cần đảm bảo:**
+- [ ] `@jwt_required()` trên cả 3 endpoints
+- [ ] Xác minh `current_password` trước khi cho phép bất kỳ thay đổi nào
+- [ ] `require_relogin: true` trong response của đổi username và đổi password
+- [ ] Đổi username kiểm tra trùng với user khác (không tự so sánh với chính mình)
+- [ ] Đổi password không được cho phép `new_password` giống `current_password`
+- [ ] Xóa tài khoản dùng cascade — không để lại orphan records
+- [ ] `db.session.rollback()` trong mọi `except` liên quan DB
+
+**🧪 Test case:**
+
+```
+Lệnh chạy:
+  cd backend
+  source .venv/bin/activate
+  pytest tests/test_account.py -v --tb=long -s
+```
+
+| # | Endpoint | Request body | HTTP | Response body |
+|---|----------|-------------|------|---------------|
+| 1 | `PUT /username` | Không có token | 401 | `{"msg":"Missing Authorization Header"}` |
+| 2 | `PUT /username` | `{"new_username":"alice2","current_password":"pass123"}` + token | 200 | `{"message":"Đổi tên đăng nhập thành công...","require_relogin":true}` |
+| 3 | `PUT /username` | `{"new_username":"bob","current_password":"pass123"}` (bob đã tồn tại) | 409 | `{"error":"Username đã tồn tại"}` |
+| 4 | `PUT /username` | `{"new_username":"alice2","current_password":"wrongpass"}` | 401 | `{"error":"Mật khẩu hiện tại không đúng"}` |
+| 5 | `PUT /username` | `{"new_username":""}` | 400 | `{"error":"Username mới không được để trống"}` |
+| 6 | `PUT /password` | `{"current_password":"pass123","new_password":"newpass456"}` + token | 200 | `{"message":"Đổi mật khẩu thành công...","require_relogin":true}` |
+| 7 | `PUT /password` | `{"current_password":"pass123","new_password":"pass123"}` | 400 | `{"error":"Mật khẩu mới không được giống mật khẩu hiện tại"}` |
+| 8 | `PUT /password` | `{"current_password":"pass123","new_password":"123"}` | 400 | `{"error":"Mật khẩu mới phải ít nhất 6 ký tự"}` |
+| 9 | `PUT /password` | `{"current_password":"wrongpass","new_password":"newpass456"}` | 401 | `{"error":"Mật khẩu hiện tại không đúng"}` |
+| 10 | `DELETE /account` | `{"current_password":"pass123"}` + token | 200 | `{"message":"Tài khoản đã được xóa vĩnh viễn."}` |
+| 11 | `DELETE /account` | `{"current_password":"wrongpass"}` | 401 | `{"error":"Mật khẩu hiện tại không đúng"}` |
+| 12 | Sau DELETE | Dùng token cũ gọi bất kỳ API | 401 | Token không còn hợp lệ (user không còn tồn tại) |
+
+```
+Kết quả terminal mong đợi:
+  ======================== test session starts ========================
+  tests/test_account.py::test_change_username_no_auth PASSED
+  tests/test_account.py::test_change_username_success PASSED
+  tests/test_account.py::test_change_username_duplicate PASSED
+  tests/test_account.py::test_change_username_wrong_password PASSED
+  tests/test_account.py::test_change_username_empty PASSED
+  tests/test_account.py::test_change_password_success PASSED
+  tests/test_account.py::test_change_password_same_as_current PASSED
+  tests/test_account.py::test_change_password_too_short PASSED
+  tests/test_account.py::test_change_password_wrong_current PASSED
+  tests/test_account.py::test_delete_account_success PASSED
+  tests/test_account.py::test_delete_account_wrong_password PASSED
+  tests/test_account.py::test_token_invalid_after_delete PASSED
+  ============================== 12 passed in 0.61s ==============================
+```
+
+**Kết quả mong đợi:** Cả 3 thao tác hoạt động đúng, xác thực mật khẩu hiện tại trước khi cho phép thay đổi, backend ra hiệu yêu cầu đăng nhập lại.
 
 ---
 
@@ -692,7 +847,7 @@ Lệnh chạy thủ công:
 - [ ] Input có `autocomplete` attribute (`username`, `current-password`, `email`)
 
 **🧪 Test case:**
-ope
+
 | # | Hành động | Input | Kết quả mong đợi |
 |---|-----------|-------|-----------------|
 | 1 | Mở `/auth` | — | Form Login hiển thị mặc định |
@@ -705,7 +860,62 @@ ope
 
 ---
 
-### Task 6.3: HomeView (CoinTable)
+### Task 6.3: AccountSettingsView (Cài đặt tài khoản)
+
+**Công việc:**
+
+- Thêm route `/settings` vào `router/index.js` với `meta: { requiresAuth: true }`
+- Tạo `views/AccountSettingsView.vue` với 3 section riêng biệt trong cùng 1 trang:
+  - **Đổi tên đăng nhập**: input `new_username` + input `current_password` + nút xác nhận
+  - **Đổi mật khẩu**: input `current_password` + input `new_password` + input `confirm_password` + nút xác nhận
+  - **Xóa tài khoản**: vùng nguy hiểm (danger zone) với màu đỏ, input `current_password` + nút "Xóa tài khoản vĩnh viễn"
+- Mỗi section có state `isLoading` và `errorMsg` riêng — lỗi của section nào hiện ở section đó
+- **Xử lý `require_relogin`**: khi nhận `require_relogin: true` từ response, gọi `authStore.logout()` rồi redirect `/auth` kèm query param `?reason=relogin` để AuthView hiển thị thông báo phù hợp
+- AuthView đọc query `?reason=relogin` và hiện banner "Thông tin đăng nhập đã thay đổi. Vui lòng đăng nhập lại."
+- Thêm link "Cài đặt tài khoản" vào Navbar (chỉ hiện khi đã đăng nhập)
+
+> **Mẫu xử lý require_relogin trong mỗi action**:
+> ```js
+> const { data } = await api.put('/auth/account/username', payload)
+> if (data.require_relogin) {
+>   authStore.logout()
+>   router.push({ name: 'Auth', query: { reason: 'relogin' } })
+> }
+> ```
+
+> **Mẫu danger zone**: Section xóa tài khoản dùng `border: 2px solid var(--color-red)`, background nhạt hơn để người dùng nhận biết đây là hành động không thể hoàn tác.
+
+**✅ Tiêu chuẩn chất lượng cần đảm bảo:**
+- [ ] Mỗi section có state `isLoading` và `errorMsg` độc lập
+- [ ] `finally` block reset `isLoading = false` sau mỗi request
+- [ ] Redirect về `/auth?reason=relogin` sau khi thao tác thành công
+- [ ] AuthView đọc query `reason` và hiện banner thông báo
+- [ ] Danger zone phân biệt rõ bằng màu sắc, có text cảnh báo "Hành động không thể hoàn tác"
+- [ ] Validation client-side: `confirm_password` phải khớp `new_password` trước khi gửi request
+
+**🧪 Test case:**
+
+```
+Lệnh chạy thủ công:
+  deactivate && cd frontend && pnpm run dev
+```
+
+| # | Hành động | Input | Kết quả mong đợi |
+|---|-----------|-------|-----------------|
+| 1 | Chưa login → `/settings` | — | Redirect về `/auth` (navigation guard) |
+| 2 | Mở `/settings` sau khi login | — | Trang hiện 3 section rõ ràng: Đổi username, Đổi password, Xóa tài khoản |
+| 3 | Đổi username — sai mật khẩu | `new_username: "alice2"`, `current_password: "wrong"` | Section đổi username hiện lỗi: "Mật khẩu hiện tại không đúng" |
+| 4 | Đổi username — thành công | `new_username: "alice2"`, `current_password: "pass123"` | Toast "Đổi tên thành công", tự động logout, redirect `/auth?reason=relogin` |
+| 5 | AuthView nhận `reason=relogin` | — | Banner "Thông tin đăng nhập đã thay đổi. Vui lòng đăng nhập lại." |
+| 6 | Đổi password — không khớp confirm | `new: "abc123"`, `confirm: "abc456"` | Lỗi client-side: "Mật khẩu xác nhận không khớp", không gửi request |
+| 7 | Đổi password — thành công | `current: "pass123"`, `new: "newpass456"` | Logout tự động, redirect `/auth?reason=relogin` |
+| 8 | Xóa tài khoản — sai mật khẩu | `current_password: "wrong"` | Section danger zone hiện lỗi: "Mật khẩu hiện tại không đúng" |
+| 9 | Xóa tài khoản — thành công | `current_password: "pass123"` | Toast "Tài khoản đã được xóa", redirect `/auth`, không thể login lại với account cũ |
+| 10 | Đang thực hiện 1 thao tác | Click nút nhiều lần | Button disabled, chỉ gửi 1 request |
+
+---
+
+### Task 6.4: HomeView (CoinTable)
 
 **Công việc:**
 
@@ -747,7 +957,7 @@ ope
 
 ---
 
-### Task 6.4: CoinDetailView (Biểu đồ giá)
+### Task 6.5: CoinDetailView (Biểu đồ giá)
 
 **Công việc:**
 
@@ -783,7 +993,7 @@ ope
 
 ---
 
-### Task 6.5: CompareChart (So sánh 2 coin)
+### Task 6.6: CompareChart (So sánh 2 coin)
 
 **Công việc:**
 
@@ -820,7 +1030,7 @@ ope
 
 ---
 
-### Task 6.6: NewsView
+### Task 6.7: NewsView
 
 **Công việc:**
 
@@ -857,7 +1067,7 @@ ope
 
 ---
 
-### Task 6.7: WatchlistView
+### Task 6.8: WatchlistView
 
 **Công việc:**
 
@@ -940,14 +1150,16 @@ ope
 
 **Công việc:**
 
-- **Backend (pytest)**: 4 file test
+- **Backend (pytest)**: 5 file test
   - `tests/conftest.py` — fixtures `app`, `client`, `auth_headers`
   - `tests/test_auth.py` — register, login, validation, token
+  - `tests/test_account.py` — đổi username, đổi password, xóa tài khoản, xác thực mật khẩu hiện tại
   - `tests/test_coins.py` — list, detail, search, history, 404
   - `tests/test_watchlist.py` — CRUD, auth required, duplicate
-- **Frontend (vitest)**: 2 file test
+- **Frontend (vitest)**: 3 file test
   - `tests/stores/auth.test.js` — login action, logout, `isAuthenticated`
   - `tests/components/CoinTable.test.js` — render props, hiện/ẩn nút theo mode
+  - `tests/views/AccountSettings.test.js` — validation client-side, xử lý `require_relogin`
 
 **✅ Tiêu chuẩn chất lượng cần đảm bảo:**
 - [ ] Backend test dùng `TestingConfig` (SQLite in-memory)
@@ -974,7 +1186,7 @@ Lệnh chạy Backend (đầy đủ output, không ẩn tiến trình):
 Kết quả terminal mong đợi (Backend):
   ===================== test session starts =====================
   platform linux -- Python 3.12.3, pytest-8.2.2, pluggy-1.5.0
-  collected 26 items
+  collected 38 items
 
   tests/test_models.py::test_user_password_hash PASSED
   tests/test_models.py::test_user_to_dict_no_password PASSED
@@ -985,6 +1197,16 @@ Kết quả terminal mong đợi (Backend):
   tests/test_auth.py::test_register_short_password PASSED
   tests/test_auth.py::test_login_success PASSED
   tests/test_auth.py::test_login_wrong_password PASSED
+  tests/test_account.py::test_change_username_no_auth PASSED
+  tests/test_account.py::test_change_username_success PASSED
+  tests/test_account.py::test_change_username_duplicate PASSED
+  tests/test_account.py::test_change_username_wrong_password PASSED
+  tests/test_account.py::test_change_password_success PASSED
+  tests/test_account.py::test_change_password_same_as_current PASSED
+  tests/test_account.py::test_change_password_wrong_current PASSED
+  tests/test_account.py::test_delete_account_success PASSED
+  tests/test_account.py::test_delete_account_wrong_password PASSED
+  tests/test_account.py::test_token_invalid_after_delete PASSED
   tests/test_coins.py::test_get_coins_page1 PASSED
   tests/test_coins.py::test_get_coin_not_found PASSED
   tests/test_coins.py::test_search_coins PASSED
@@ -999,16 +1221,16 @@ Kết quả terminal mong đợi (Backend):
   -----------------------------------------------
   app/__init__.py               25      2    92%
   app/models.py                 68      5    93%
-  app/routes/auth.py            42      4    90%
+  app/routes/auth.py            68      5    93%
   app/routes/coins.py           55      8    85%
   app/routes/news.py            28      3    89%
   app/routes/watchlist.py       38      3    92%
   app/services/coingecko.py     45      6    87%
   app/scheduler.py              32      4    88%
   -----------------------------------------------
-  TOTAL                        333     35    90%
+  TOTAL                        359     36    90%
 
-  ====================== 17 passed in 2.34s ======================
+  ====================== 27 passed in 2.91s ======================
 ```
 
 ```
@@ -1040,9 +1262,16 @@ Kết quả terminal mong đợi (Frontend):
       ✓ shows delete button when mode is watchlist (6ms)
       ✓ navigates to coin detail on row click (9ms)
 
-  Test Files  2 passed (2)
-  Tests       9 passed (9)
-  Duration    1.54s
+  tests/views/AccountSettings.test.js
+    AccountSettingsView
+      ✓ redirects to /auth if not logged in (6ms)
+      ✓ shows error when confirm password does not match (7ms)
+      ✓ calls logout and redirects on require_relogin response (14ms)
+      ✓ shows per-section error without affecting other sections (8ms)
+
+  Test Files  3 passed (3)
+  Tests       13 passed (13)
+  Duration    1.87s
 ```
 
 **Kết quả mong đợi:** Tất cả test PASS, coverage backend ≥ 70%.
@@ -1109,12 +1338,12 @@ Lệnh build + test local trước khi deploy:
 | --------- | ------------------------------- | ------------------ |
 | 1         | Khởi tạo dự án & môi trường     | 1 ngày             |
 | 2         | Database & Models               | 1 ngày             |
-| 3         | Authentication API              | 1 ngày             |
+| 3         | Authentication & Account API    | 1-2 ngày           |
 | 4         | Coins, News, Watchlist API      | 2-3 ngày           |
 | 5         | APScheduler                     | 1 ngày             |
-| 6         | Frontend (6 views + components) | 5-7 ngày           |
+| 6         | Frontend (8 views + components) | 6-8 ngày           |
 | 7         | Polish, Test, Deploy            | 2-3 ngày           |
-| **Tổng**  |                                 | **~13-17 ngày**    |
+| **Tổng**  |                                 | **~14-18 ngày**    |
 
 ---
 

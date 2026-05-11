@@ -5,7 +5,7 @@ Tài liệu này định nghĩa các quy tắc bắt buộc đối với tất c
 ## 🛡️ Nguyên tắc an toàn & Tài nguyên
 - **Thay đổi Database**: Mọi thao tác `flask db migrate` hoặc sửa file `models.py` PHẢI giải thích lý do cụ thể và chờ người dùng xác nhận
 - **Thao tác Xóa**: Tuyệt đối không xóa file mà không giải thích lý do. Khi xóa, phải liệt kê danh sách các file/module bị ảnh hưởng
-- **Giới hạn thực thi**: Tự điều chỉnh kế hoạch để hoàn thành trong tối đa 10 bước (`steps`). Ưu tiên các lệnh tối ưu tài nguyên trên Linux Mint.
+- **Giới hạn thực thi**: Tự điều chỉnh kế hoạch để hoàn thành trong tối đa 15 bước (`steps`). Ưu tiên các lệnh tối ưu tài nguyên trên Linux Mint.
 
 ## 💻 Quy trình viết Code (Workflow)
 - **Incremental Code**: Tuyệt đối không sinh toàn bộ mã nguồn lớn trong một lần. Hãy chia nhỏ thành từng phần (ví dụ: từng Route, từng Component) để người dùng dễ kiểm soát.
