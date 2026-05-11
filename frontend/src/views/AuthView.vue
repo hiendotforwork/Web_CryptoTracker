@@ -131,13 +131,16 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, inject } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const router = useRouter()
 const route = useRoute()
 const authStore = useAuthStore()
+
+// Nhận showToast từ App.vue qua provide/inject
+const showToast = inject('showToast')
 
 // State
 const isLoginMode = ref(true)
@@ -187,17 +190,19 @@ async function handleSubmit() {
   try {
     if (isLoginMode.value) {
       await authStore.login(form.username, form.password)
+      // Redirect sau đăng nhập thành công
+      const redirect = route.query.redirect || '/'
+      router.push(redirect)
     } else {
       await authStore.register({
         username: form.username,
         email: form.email,
         password: form.password
       })
+      // Đăng ký thành công → chuyển sang form đăng nhập + hiển thị toast
+      toggleMode()
+      showToast?.('Đăng ký thành công! Mời đăng nhập.', 'success')
     }
-    
-    // Redirect after success
-    const redirect = route.query.redirect || '/'
-    router.push(redirect)
   } catch (err) {
     errorMsg.value = err.response?.data?.error || 'Đã có lỗi xảy ra'
   } finally {

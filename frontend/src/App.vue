@@ -168,7 +168,7 @@
  * WHY: Tách riêng layout giúp các view con tập trung vào logic nghiệp vụ
  * HOW: Dùng Composition API, provide/inject cho toast system
  */
-import { ref, onMounted, onUnmounted, h } from 'vue'
+import { ref, provide, onMounted, onUnmounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
@@ -369,6 +369,9 @@ function showToast(message, type = 'info') {
 
 // Expose showToast để các component con có thể dùng
 defineExpose({ showToast })
+
+// Provide showToast qua provide/inject cho toàn bộ cây component
+provide('showToast', showToast)
 
 // =====================================================
 // LIFECYCLE & EVENTS
