@@ -44,12 +44,12 @@
               <StarIcon class="nav-icon" />
               <span>Watchlist</span>
             </router-link>
-            <div class="nav-user-wrapper">
+            <router-link to="/profile" class="nav-user-wrapper nav-user-link" aria-label="Trang tài khoản">
               <div class="nav-user-avatar">
                 {{ user?.username?.charAt(0)?.toUpperCase() || 'U' }}
               </div>
               <span class="nav-user">{{ user?.username }}</span>
-            </div>
+            </router-link>
             <button class="btn-logout" @click="handleLogout">
               <LogOutIcon class="btn-icon" />
               <span>Đăng xuất</span>
@@ -102,12 +102,17 @@
                 <StarIcon class="mobile-icon" />
                 <span>Watchlist</span>
               </router-link>
-              <div class="mobile-user-info">
+              <router-link
+                to="/profile"
+                class="mobile-link"
+                @click="isMenuOpen = false"
+                aria-label="Trang tài khoản"
+              >
                 <div class="mobile-user-avatar">
                   {{ user?.username?.charAt(0)?.toUpperCase() || 'U' }}
                 </div>
                 <span class="mobile-user">{{ user?.username }}</span>
-              </div>
+              </router-link>
               <button class="mobile-link btn-logout" @click="handleLogout">
                 <LogOutIcon class="mobile-icon" />
                 <span>Đăng xuất</span>
@@ -424,7 +429,7 @@ onUnmounted(() => {
   bottom: 0;
   z-index: -2;
   background: 
-    radial-gradient(ellipse 80% 50% at 20% 40%, rgba(61, 107, 138, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse 80% 50% at 20% 40%, rgba(204, 41, 54, 0.15) 0%, transparent 50%),
     radial-gradient(ellipse 60% 40% at 80% 60%, rgba(26, 58, 92, 0.2) 0%, transparent 50%),
     linear-gradient(180deg, var(--color-bg-primary) 0%, #0a1420 100%);
   pointer-events: none;
@@ -442,8 +447,8 @@ onUnmounted(() => {
   bottom: 0;
   z-index: -1;
   background-image: 
-    linear-gradient(rgba(61, 107, 138, 0.03) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(61, 107, 138, 0.03) 1px, transparent 1px);
+    linear-gradient(rgba(204, 41, 54, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(204, 41, 54, 0.03) 1px, transparent 1px);
   background-size: 50px 50px;
   pointer-events: none;
 }
@@ -454,7 +459,7 @@ onUnmounted(() => {
 .navbar {
   background: linear-gradient(180deg, rgba(26, 58, 92, 0.95) 0%, rgba(26, 58, 92, 0.8) 100%);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(138, 180, 196, 0.1);
+  border-bottom: 1px solid rgba(160, 180, 200, 0.1);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -519,7 +524,7 @@ onUnmounted(() => {
   transform: translate(-50%, -50%);
   width: 60px;
   height: 60px;
-  background: radial-gradient(circle, rgba(138, 180, 196, 0.3) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(160, 180, 200, 0.3) 0%, transparent 70%);
   border-radius: 50%;
   filter: blur(10px);
   animation: pulse-glow 3s ease-in-out infinite;
@@ -563,7 +568,7 @@ onUnmounted(() => {
 .nav-divider {
   width: 1px;
   height: 24px;
-  background: rgba(138, 180, 196, 0.2);
+  background: rgba(160, 180, 200, 0.2);
   margin: 0 var(--spacing-sm);
 }
 
@@ -595,7 +600,7 @@ onUnmounted(() => {
 
 .nav-link:hover {
   color: var(--color-text-primary);
-  background: rgba(138, 180, 196, 0.1);
+  background: rgba(160, 180, 200, 0.1);
 }
 
 .nav-link:hover::after {
@@ -631,8 +636,19 @@ onUnmounted(() => {
   align-items: center;
   gap: var(--spacing-sm);
   padding: var(--spacing-xs) var(--spacing-md);
-  background: rgba(138, 180, 196, 0.1);
+  background: rgba(160, 180, 200, 0.1);
   border-radius: var(--radius-full);
+}
+
+/* Khi nav-user-wrapper là router-link → thêm hover effect */
+.nav-user-link {
+  text-decoration: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.nav-user-link:hover {
+  background: rgba(160, 180, 200, 0.2);
 }
 
 .nav-user-avatar {
@@ -663,12 +679,12 @@ onUnmounted(() => {
   border-radius: var(--radius-full) !important;
   color: var(--color-text-primary) !important;
   font-weight: 600;
-  box-shadow: 0 4px 15px rgba(61, 107, 138, 0.3);
+  box-shadow: 0 4px 15px rgba(204, 41, 54, 0.3);
 }
 
 .btn-login:hover {
   background: linear-gradient(135deg, var(--color-primary-light) 0%, var(--color-primary) 100%);
-  box-shadow: 0 6px 20px rgba(61, 107, 138, 0.4);
+  box-shadow: 0 6px 20px rgba(204, 41, 54, 0.4);
   transform: translateY(-2px);
 }
 
@@ -692,7 +708,7 @@ onUnmounted(() => {
 
 .btn-logout:hover {
   color: var(--color-danger);
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(204, 41, 54, 0.1);
 }
 
 .btn-icon {
@@ -750,7 +766,7 @@ onUnmounted(() => {
   right: 0;
   background: rgba(26, 58, 92, 0.98);
   backdrop-filter: blur(20px);
-  border-bottom: 1px solid rgba(138, 180, 196, 0.1);
+  border-bottom: 1px solid rgba(160, 180, 200, 0.1);
 }
 
 .mobile-menu-inner {
@@ -773,7 +789,7 @@ onUnmounted(() => {
 
 .mobile-link:hover {
   color: var(--color-text-primary);
-  background: rgba(138, 180, 196, 0.1);
+  background: rgba(160, 180, 200, 0.1);
 }
 
 .mobile-icon {
@@ -783,7 +799,7 @@ onUnmounted(() => {
 
 .mobile-divider {
   height: 1px;
-  background: rgba(138, 180, 196, 0.1);
+  background: rgba(160, 180, 200, 0.1);
   margin: var(--spacing-md) 0;
 }
 
@@ -846,7 +862,7 @@ onUnmounted(() => {
   background: rgba(26, 58, 92, 0.95);
   backdrop-filter: blur(20px);
   border-radius: var(--radius-lg);
-  border: 1px solid rgba(138, 180, 196, 0.2);
+  border: 1px solid rgba(160, 180, 200, 0.2);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
   pointer-events: auto;
   min-width: 280px;
@@ -862,8 +878,8 @@ onUnmounted(() => {
 }
 
 .toast.error {
-  border-color: rgba(239, 68, 68, 0.3);
-  background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(26, 58, 92, 0.95) 100%);
+  border-color: rgba(204, 41, 54, 0.3);
+  background: linear-gradient(135deg, rgba(204, 41, 54, 0.1) 0%, rgba(26, 58, 92, 0.95) 100%);
 }
 
 .toast.error .toast-icon {

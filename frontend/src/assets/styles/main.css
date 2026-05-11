@@ -1,36 +1,37 @@
 /**
  * Crypto Tracker - Main CSS Variables
  * 
- * Định nghĩa bảng màu dự án theo yêu cầu:
- * #0d1a26 - Dark background
- * #1a3a5c - Primary darker
- * #3d6b8a - Primary
- * #8ab4c4 - Light text
- * #e8f0f5 - White text
+ * Định nghĩa bảng màu dự án:
+ * #0a1628 - Dark background (navy)
+ * #1a3a5c - Secondary background (dark blue)
+ * #cc2936 - Primary accent (red)
+ * #c9a227 - Secondary accent (gold)
+ * #ffffff  - Text chính
+ * #a0b4c8  - Text muted
  */
 
 /* CSS Variables - Bảng màu dự án */
 :root {
   /* Màu nền */
-  --color-bg-primary: #0d1a26;
+  --color-bg-primary: #0a1628;
   --color-bg-secondary: #1a3a5c;
   
   /* Màu chính */
-  --color-primary: #3d6b8a;
-  --color-primary-light: #8ab4c4;
+  --color-primary: #cc2936;
+  --color-primary-light: #e07b82;
   
   /* Màu text */
-  --color-text-primary: #e8f0f5;
-  --color-text-secondary: #8ab4c4;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a0b4c8;
   
   /* Màu phụ */
-  --color-accent: #3d6b8a;
+  --color-accent: #c9a227;
   --color-border: #1a3a5c;
   
   /* Trạng thái */
   --color-success: #10b981;
-  --color-danger: #ef4444;
-  --color-warning: #f59e0b;
+  --color-danger: #cc2936;
+  --color-warning: #c9a227;
   
   /* Typography */
   /* Typography */

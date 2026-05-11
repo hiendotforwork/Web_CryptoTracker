@@ -314,7 +314,7 @@ onUnmounted(() => {
 .search-input:focus {
   outline: none;
   border-color: var(--color-primary-light);
-  box-shadow: 0 0 0 3px rgba(138, 180, 196, 0.2);
+  box-shadow: 0 0 0 3px rgba(160, 180, 200, 0.2);
 }
 
 .search-input::placeholder {
@@ -340,7 +340,7 @@ onUnmounted(() => {
 
 .search-clear:hover {
   color: var(--color-text-primary);
-  background: rgba(138, 180, 196, 0.1);
+  background: rgba(160, 180, 200, 0.1);
 }
 
 /* =====================================================
@@ -464,7 +464,7 @@ onUnmounted(() => {
 }
 
 .toast.error {
-  border-color: rgba(239, 68, 68, 0.5);
+  border-color: rgba(204, 41, 54, 0.5);
 }
 
 .toast-message {

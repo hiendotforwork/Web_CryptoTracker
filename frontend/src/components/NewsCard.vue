@@ -102,8 +102,8 @@ function formatDate(dateStr) {
 
 .news-card:hover {
   transform: translateY(-4px);
-  box-shadow: 0 20px 40px -10px rgba(61, 107, 138, 0.15),
-              0 0 20px rgba(61, 107, 138, 0.05);
+  box-shadow: 0 20px 40px -10px rgba(204, 41, 54, 0.15),
+              0 0 20px rgba(204, 41, 54, 0.05);
 }
 
 .news-card:hover::before {
@@ -185,10 +185,10 @@ function formatDate(dateStr) {
 /* Glow pulse animation for cards */
 @keyframes cardGlow {
   0%, 100% {
-    box-shadow: 0 0 0 0 rgba(61, 107, 138, 0);
+    box-shadow: 0 0 0 0 rgba(204, 41, 54, 0);
   }
   50% {
-    box-shadow: 0 0 20px 2px rgba(61, 107, 138, 0.08);
+    box-shadow: 0 0 20px 2px rgba(204, 41, 54, 0.08);
   }
 }
 

@@ -40,17 +40,17 @@ const props = defineProps({
   /** Màu đường line */
   lineColor: {
     type: String,
-    default: '#3d6b8a'
+    default: '#cc2936'
   },
   /** Màu gradient top */
   topColor: {
     type: String,
-    default: 'rgba(61, 107, 138, 0.4)'
+    default: 'rgba(204, 41, 54, 0.4)'
   },
   /** Màu gradient bottom */
   bottomColor: {
     type: String,
-    default: 'rgba(61, 107, 138, 0.1)'
+    default: 'rgba(204, 41, 54, 0.1)'
   },
   /** Chiều cao chart */
   height: {
@@ -104,20 +104,20 @@ function initChart() {
     height: props.height,
     layout: {
       background: { type: 'solid', color: '#1a3a5c' },
-      textColor: '#8ab4c4'
+      textColor: '#a0b4c8'
     },
     grid: {
-      vertLines: { color: '#0d1a26' },
-      horzLines: { color: '#0d1a26' }
+      vertLines: { color: '#0a1628' },
+      horzLines: { color: '#0a1628' }
     },
     crosshair: {
       mode: 1
     },
     rightPriceScale: {
-      borderColor: '#3d6b8a'
+      borderColor: '#cc2936'
     },
     timeScale: {
-      borderColor: '#3d6b8a',
+      borderColor: '#cc2936',
       timeVisible: true,
       secondsVisible: false
     }

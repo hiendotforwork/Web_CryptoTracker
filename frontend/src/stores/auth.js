@@ -76,6 +76,54 @@ export const useAuthStore = defineStore('auth', () => {
     })
   }
   
+  /**
+   * Đổi mật khẩu
+   * @param {string} currentPassword - Mật khẩu hiện tại
+   * @param {string} newPassword - Mật khẩu mới
+   */
+  async function changePassword(currentPassword, newPassword) {
+    const response = await api.patch('/auth/change-password', {
+      current_password: currentPassword,
+      new_password: newPassword
+    })
+    return response.data
+  }
+
+  /**
+   * Đổi tên đăng nhập
+   * @param {string} newUsername - Username mới
+   * @param {string} currentPassword - Mật khẩu xác nhận
+   */
+  async function changeUsername(newUsername, currentPassword) {
+    const response = await api.patch('/auth/change-username', {
+      new_username: newUsername,
+      current_password: currentPassword
+    })
+
+    // Cập nhật store và localStorage với username mới
+    if (response.data.user) {
+      user.value = { ...user.value, username: response.data.user.username }
+      localStorage.setItem('user', JSON.stringify(user.value))
+    }
+
+    return response.data
+  }
+
+  /**
+   * Xóa tài khoản — logout sau khi xóa thành công
+   * @param {string} currentPassword - Mật khẩu xác nhận
+   */
+  async function deleteAccount(currentPassword) {
+    const response = await api.delete('/auth/delete-account', {
+      data: { current_password: currentPassword }
+    })
+
+    // Xóa hết state sau khi tài khoản bị xóa
+    logout()
+
+    return response.data
+  }
+
   // =====================================================
   // RETURN
   // =====================================================
@@ -90,6 +138,9 @@ export const useAuthStore = defineStore('auth', () => {
     // Actions
     login,
     register,
-    logout
+    logout,
+    changePassword,
+    changeUsername,
+    deleteAccount
   }
 })

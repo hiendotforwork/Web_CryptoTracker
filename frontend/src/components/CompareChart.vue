@@ -320,20 +320,20 @@ function initChart() {
     height: 400,
     layout: {
       background: { type: 'solid', color: '#1a3a5c' },
-      textColor: '#8ab4c4'
+      textColor: '#a0b4c8'
     },
     grid: {
-      vertLines: { color: '#0d1a26' },
-      horzLines: { color: '#0d1a26' }
+      vertLines: { color: '#0a1628' },
+      horzLines: { color: '#0a1628' }
     },
     crosshair: {
       mode: 1
     },
     rightPriceScale: {
-      borderColor: '#3d6b8a'
+      borderColor: '#cc2936'
     },
     timeScale: {
-      borderColor: '#3d6b8a',
+      borderColor: '#cc2936',
       timeVisible: true,
       secondsVisible: false
     }

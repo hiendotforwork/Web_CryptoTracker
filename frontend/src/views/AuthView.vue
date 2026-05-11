@@ -283,7 +283,7 @@ async function handleSubmit() {
 
 .error-alert {
   padding: var(--spacing-md);
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(204, 41, 54, 0.1);
   border: 1px solid var(--color-danger);
   border-radius: var(--radius-md);
   color: var(--color-danger);

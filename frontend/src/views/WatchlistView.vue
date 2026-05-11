@@ -346,7 +346,7 @@ onMounted(() => {
 }
 
 .toast.error {
-  border-color: rgba(239, 68, 68, 0.5);
+  border-color: rgba(204, 41, 54, 0.5);
 }
 
 .toast-message {

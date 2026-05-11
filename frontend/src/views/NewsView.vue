@@ -370,9 +370,9 @@ onMounted(() => {
   background: linear-gradient(
     145deg,
     rgba(26, 58, 92, 0.5) 0%,
-    rgba(13, 26, 38, 0.5) 100%
+    rgba(10, 22, 40, 0.5) 100%
   );
-  border: 1px solid rgba(61, 107, 138, 0.2);
+  border: 1px solid rgba(204, 41, 54, 0.2);
   border-radius: var(--radius-lg);
   backdrop-filter: blur(10px);
 }
@@ -455,8 +455,8 @@ onMounted(() => {
 .search-input:focus {
   outline: none;
   border-color: var(--color-primary);
-  box-shadow: 0 0 0 3px rgba(61, 107, 138, 0.15),
-    0 0 20px rgba(61, 107, 138, 0.1);
+  box-shadow: 0 0 0 3px rgba(204, 41, 54, 0.15),
+    0 0 20px rgba(204, 41, 54, 0.1);
 }
 
 .search-input:focus + .search-icon {
@@ -526,7 +526,7 @@ onMounted(() => {
   background: linear-gradient(
     90deg,
     var(--color-bg-secondary) 25%,
-    rgba(61, 107, 138, 0.2) 50%,
+    rgba(204, 41, 54, 0.2) 50%,
     var(--color-bg-secondary) 75%
   );
   background-size: 200% 100%;
@@ -643,7 +643,7 @@ onMounted(() => {
 
 .btn-retry:hover {
   transform: translateY(-2px);
-  box-shadow: 0 10px 20px -5px rgba(61, 107, 138, 0.3);
+  box-shadow: 0 10px 20px -5px rgba(204, 41, 54, 0.3);
 }
 
 .btn-retry svg {
@@ -661,7 +661,7 @@ onMounted(() => {
   gap: var(--spacing-xl);
   margin-top: var(--spacing-2xl);
   padding-top: var(--spacing-xl);
-  border-top: 1px solid rgba(61, 107, 138, 0.2);
+  border-top: 1px solid rgba(204, 41, 54, 0.2);
 }
 
 .btn-page {
@@ -682,7 +682,7 @@ onMounted(() => {
   background: var(--color-primary);
   border-color: var(--color-primary);
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px -4px rgba(61, 107, 138, 0.2);
+  box-shadow: 0 8px 16px -4px rgba(204, 41, 54, 0.2);
 }
 
 .btn-page:disabled {
