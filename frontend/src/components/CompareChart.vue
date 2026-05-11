@@ -171,6 +171,10 @@ const series2 = ref(null)
 // Debounce
 let searchTimeout = null
 
+// AbortControllers để cancel request cũ khi đổi period
+let coin1AbortController = null
+let coin2AbortController = null
+
 // Period options
 const periods = [
   { label: '24H', value: 1 },
@@ -184,18 +188,30 @@ let resizeObserver = null
 
 /**
  * Fetch coin 1 info và prices
+ * @param {boolean} periodChange - true khi chỉ đổi period (bỏ qua re-fetch coin info)
  */
-async function fetchCoin1() {
+async function fetchCoin1(periodChange = false) {
+  // Cancel request cũ trước khi tạo mới
+  if (coin1AbortController) coin1AbortController.abort()
+  coin1AbortController = new AbortController()
+  const controller = coin1AbortController
+
   try {
-    const response = await api.get(`/coins/${props.coin1Id}`)
-    coin1Data.value = response.data.coin
-    
-    // Fetch prices
-    const pricesRes = await api.get(`/coins/${props.coin1Id}/history?days=${selectedPeriod.value}`)
+    // Chỉ fetch coin info lần đầu hoặc khi coin1Id thay đổi
+    if (!periodChange || !coin1Data.value) {
+      const response = await api.get(`/coins/${props.coin1Id}`, { signal: controller.signal })
+      coin1Data.value = response.data.coin
+    }
+
+    const pricesRes = await api.get(
+      `/coins/${props.coin1Id}/history?days=${selectedPeriod.value}`,
+      { signal: controller.signal }
+    )
     coin1Prices.value = pricesRes.data.prices || []
-    
-    updateChart()
+
+    if (!controller.signal.aborted) updateChart()
   } catch (err) {
+    if (controller.signal.aborted) return
     console.error('Error fetching coin1:', err)
   }
 }
@@ -236,8 +252,13 @@ function selectCoin2(coin) {
   coin2Data.value = coin
   searchQuery2.value = ''
   showDropdown2.value = false
+
+  // Reinit chart để tạo series2 (coin2Data đã được set)
+  initChart()
+  // Khôi phục data coin1 ngay không cần re-fetch
+  if (coin1Prices.value.length) updateChart()
+
   fetchCoin2()
-  
   emit('coin2-select', coin)
 }
 
@@ -247,7 +268,11 @@ function selectCoin2(coin) {
 function clearCoin2() {
   coin2Data.value = null
   coin2Prices.value = []
-  updateChart()
+  // Cancel request đang pending nếu có
+  if (coin2AbortController) coin2AbortController.abort()
+  // Reinit chart để xóa series2
+  initChart()
+  if (coin1Prices.value.length) updateChart()
 }
 
 /**
@@ -256,15 +281,28 @@ function clearCoin2() {
 async function fetchCoin2() {
   if (!coin2Data.value) return
 
+  // Cancel request cũ, tránh race condition và stuck loading
+  if (coin2AbortController) coin2AbortController.abort()
+  coin2AbortController = new AbortController()
+  const controller = coin2AbortController
+
   try {
     isLoading.value = true
-    const response = await api.get(`/coins/${coin2Data.value.id}/history?days=${selectedPeriod.value}`)
+    const response = await api.get(
+      `/coins/${coin2Data.value.id}/history?days=${selectedPeriod.value}`,
+      { signal: controller.signal }
+    )
     coin2Prices.value = response.data.prices || []
-    updateChart()
+    if (!controller.signal.aborted) updateChart()
   } catch (err) {
+    // Request bị cancel chủ động — không báo lỗi
+    if (controller.signal.aborted) return
     console.error('Error fetching coin2:', err)
   } finally {
-    isLoading.value = false
+    // Chỉ reset loading nếu đây vẫn là request đang active
+    if (!controller.signal.aborted) {
+      isLoading.value = false
+    }
   }
 }
 
@@ -329,8 +367,13 @@ function initChart() {
     crosshair: {
       mode: 1
     },
+    // Trục Y phải cho coin 1, trục Y trái cho coin 2 (scale độc lập)
     rightPriceScale: {
-      borderColor: '#cc2936'
+      borderColor: '#225095'
+    },
+    leftPriceScale: {
+      visible: !!coin2Data.value,
+      borderColor: '#fac901'
     },
     timeScale: {
       borderColor: '#cc2936',
@@ -345,7 +388,8 @@ function initChart() {
       lineColor: '#225095',
       topColor: 'rgba(34, 80, 149, 0.4)',
       bottomColor: 'rgba(34, 80, 149, 0.1)',
-      lineWidth: 2
+      lineWidth: 2,
+      priceScaleId: 'right'
     })
     
     if (coin2Data.value) {
@@ -353,19 +397,22 @@ function initChart() {
         lineColor: '#fac901',
         topColor: 'rgba(250, 201, 1, 0.4)',
         bottomColor: 'rgba(250, 201, 1, 0.1)',
-        lineWidth: 2
+        lineWidth: 2,
+        priceScaleId: 'left'
       })
     }
   } else {
     series1.value = chart.value.addSeries(LineSeries, {
       color: '#225095',
-      lineWidth: 2
+      lineWidth: 2,
+      priceScaleId: 'right'
     })
     
     if (coin2Data.value) {
       series2.value = chart.value.addSeries(LineSeries, {
         color: '#fac901',
-        lineWidth: 2
+        lineWidth: 2,
+        priceScaleId: 'left'
       })
     }
   }
@@ -432,8 +479,8 @@ function setChartType(type) {
 function selectPeriod(period) {
   selectedPeriod.value = period
   
-  // Fetch lại data
-  fetchCoin1()
+  // periodChange=true: không re-fetch coin info, chỉ fetch history mới
+  fetchCoin1(true)
   if (coin2Data.value) {
     fetchCoin2()
   }
@@ -443,6 +490,10 @@ function selectPeriod(period) {
  * Cleanup khi unmount
  */
 function cleanupChart() {
+  // Cancel các request đang pending
+  if (coin1AbortController) coin1AbortController.abort()
+  if (coin2AbortController) coin2AbortController.abort()
+
   if (chart.value) {
     chart.value.remove()
     chart.value = null

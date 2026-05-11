@@ -168,10 +168,11 @@
  * WHY: Tách riêng layout giúp các view con tập trung vào logic nghiệp vụ
  * HOW: Dùng Composition API, provide/inject cho toast system
  */
-import { ref, provide, onMounted, onUnmounted, h } from 'vue'
+import { ref, provide, watch, onMounted, onUnmounted, h } from 'vue'
 import { useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
+import { useWatchlistStore } from '@/stores/watchlistStore'
 
 // =====================================================
 // ICONS (Inline SVG components)
@@ -327,6 +328,7 @@ const navLinks = [
 // =====================================================
 const router = useRouter()
 const authStore = useAuthStore()
+const watchlistStore = useWatchlistStore()
 
 // Local state
 const isMenuOpen = ref(false)
@@ -397,6 +399,20 @@ function handleRouteChange() {
 onMounted(() => {
   window.addEventListener('resize', handleResize)
   router.afterEach(handleRouteChange)
+
+  // Tải watchlist ngay khi app khởi động (nếu đã đăng nhập)
+  if (isAuthenticated.value) {
+    watchlistStore.fetchWatchlist()
+  }
+})
+
+// Fetch watchlist khi user đăng nhập (isAuthenticated chuyển false → true)
+watch(isAuthenticated, (loggedIn) => {
+  if (loggedIn) {
+    watchlistStore.fetchWatchlist()
+  } else {
+    watchlistStore.clear()
+  }
 })
 
 onUnmounted(() => {

@@ -113,6 +113,22 @@ Dự án xây dựng hệ thống theo dõi thị trường tiền điện tử,
 | price      | numeric(20,8) | NOT NULL  |
 | timestamp  | timestamp     |           |
 
+### Bảng chart_cache
+
+Cache lịch sử giá theo từng period, dùng DB-first để tránh rate limit CoinGecko.
+
+| Tên trường  | Kiểu dữ liệu | Ràng buộc                                     |
+| ----------- | ------------ | --------------------------------------------- |
+| id          | integer      | PK                                            |
+| coin_id     | varchar(100) | FK(coins), CASCADE DELETE, NOT NULL           |
+| days        | integer      | NOT NULL (1, 7, 30, 90)                       |
+| prices_json | text         | NOT NULL (JSON: [[timestamp_ms, price], ...]) |
+| cached_at   | timestamp    | NOT NULL                                      |
+
+Ràng buộc: `UNIQUE(coin_id, days)` — mỗi coin chỉ có một cache entry per period.
+
+TTL theo period: `days=1` → 5 phút, `days=7` → 15 phút, `days=30` → 30 phút, `days=90` → 60 phút.
+
 ---
 
 ## 4. API Routes
@@ -129,12 +145,12 @@ Dự án xây dựng hệ thống theo dõi thị trường tiền điện tử,
 
 ### Coins `/api/coins`
 
-| Method | Endpoint             | Mô tả                                    |
-| ------ | -------------------- | ---------------------------------------- |
-| GET    | `/`                  | Danh sách coins (top 100, có phân trang) |
-| GET    | `/<coin_id>`         | Chi tiết 1 coin                          |
-| GET    | `/<coin_id>/history` | Lịch sử giá 7 ngày gần nhất              |
-| GET    | `/search?q=`         | Tìm kiếm coin theo tên/symbol            |
+| Method | Endpoint                    | Mô tả                                                  |
+| ------ | --------------------------- | ------------------------------------------------------ |
+| GET    | `/`                         | Danh sách coins (top 100, có phân trang)               |
+| GET    | `/<coin_id>`                | Chi tiết 1 coin (DB-first, scheduler cập nhật 30 phút) |
+| GET    | `/<coin_id>/history?days=n` | Lịch sử giá (DB-first cache, mặc định `days=7`)        |
+| GET    | `/search?q=`                | Tìm kiếm coin theo tên/symbol                          |
 
 ### News `/api/news`
 
@@ -173,7 +189,8 @@ Web_CryptoTracker/
 │   │   │   ├── coin.py          # Model Coin
 │   │   │   ├── news.py          # Model News
 │   │   │   ├── watchlist.py     # Model Watchlist
-│   │   │   └── price_history.py # Model PriceHistory
+│   │   │   ├── price_history.py # Model PriceHistory (snapshot mỗi 30 phút)
+│   │   │   └── chart_cache.py   # Model ChartCache (cache biểu đồ TTL per period)
 │   │   ├── routes/
 │   │   │   ├── auth.py          # /api/auth/* (register, login, profile)
 │   │   │   ├── coins.py         # /api/coins/*
@@ -231,16 +248,17 @@ Web_CryptoTracker/
 
 ## 6. Sơ đồ kiến trúc — Crypto Tracker
 
-          ┌──────────────────────┐        ┌──────────────────────┐
-          │   CoinGecko API      │        │ Free News Crypto API │
-          │ Giá & lịch sử coin   │        │ Tin tức crypto       │
-          └──────────┬───────────┘        └──────────┬───────────┘
-                     │                               │
-                     └──────────────┬────────────────┘
+          ┌──────────────────────┐        ┌────────────────────────┐
+          │   CoinGecko API      │        │ CoinDesk+CoinTelegraph │
+          │ Giá & lịch sử coin   │        │ Tin tức crypto         │
+          └──────────┬───────────┘        └──────────┬─────────────┘
+                     │ (on-demand + scheduler)        │
+                     └──────────────┬─────────────────┘
                                     │
                         ┌───────────▼───────────┐
                         │     APScheduler       │
-                        │  (15–30 phút/lần)     │
+                        │  (30 phút/lần)        │
+                        │ cập nhật coins + news │
                         └───────────┬───────────┘
                                     │
                     ┌───────────────▼───────────────┐
@@ -248,6 +266,7 @@ Web_CryptoTracker/
                     │  - Routes (REST API)          │
                     │  - Auth (JWT)                 │
                     │  - Rate Limiting              │
+                    │  - ChartCache (DB-first)      │
                     └───────┬───────────┬───────────┘
                             │           │
         ┌───────────────────▼───┐   ┌───▼───────────────────┐
@@ -260,6 +279,7 @@ Web_CryptoTracker/
         ┌───────────▼───────────────────────────▼───────────┐
         │                  PostgreSQL                       │
         │  users, coins, price_history, news, watchlist     │
+        │  chart_cache (DB-first cache cho biểu đồ)         │
         └───────────────────────────────────────────────────┘
 
 ---

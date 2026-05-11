@@ -158,7 +158,7 @@ const filteredCoins = computed(() => {
  * Lấy danh sách ID coins đã thêm vào watchlist
  */
 const watchlistCoinIds = computed(() => {
-  return watchlistCoins.value.map(c => c.coin_id)
+  return watchlistCoins.value.map(c => c.id)
 })
 
 // =====================================================

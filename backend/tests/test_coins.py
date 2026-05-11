@@ -12,6 +12,7 @@ Các test case trong Task 4.2:
 8. GET /api/coins/search?q= - empty query 400
 """
 
+import json
 import pytest
 from unittest.mock import patch
 from app.database import db
@@ -245,18 +246,34 @@ class TestCoinsCoverage:
 
     @patch("app.routes.coins.fetch_coin_history")
     def test_get_coin_history_fallback_db(self, mock_history, client, sample_coins, app):
-        """Test fallback lấy lịch sử từ DB khi API history rỗng."""
+        """Test fallback khi API fail:
+        - Nếu có stale ChartCache → trả stale cache
+        - Nếu không có cache → trả prices rỗng (không crash)
+        """
         mock_history.return_value = None
-        
-        # Thêm price history giả vào DB
-        with app.app_context():
-            from app.models import PriceHistory
-            from datetime import datetime, timezone
-            db.session.add(PriceHistory(coin_id="bitcoin", price=40000, timestamp=datetime.now(timezone.utc)))
-            db.session.commit()
 
+        # Trường hợp 1: không có cache nào → trả empty
         response = client.get("/api/coins/bitcoin/history")
         assert response.status_code == 200
         data = response.get_json()
-        assert len(data["prices"]) == 1
+        assert data["prices"] == []
+
+        # Trường hợp 2: có stale ChartCache → trả stale cache
+        stale_prices = [[1000000, 40000.0], [2000000, 41000.0]]
+        with app.app_context():
+            from app.models import ChartCache
+            from datetime import datetime, timezone, timedelta
+            stale_entry = ChartCache(
+                coin_id="bitcoin",
+                days=7,
+                prices_json=json.dumps(stale_prices),
+                cached_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            )
+            db.session.add(stale_entry)
+            db.session.commit()
+
+        response = client.get("/api/coins/bitcoin/history?days=7")
+        assert response.status_code == 200
+        data = response.get_json()
+        assert len(data["prices"]) == 2
         assert data["prices"][0][1] == 40000.0

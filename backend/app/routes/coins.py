@@ -5,16 +5,23 @@ Coins routes module.
 - GET /api/coins/: Danh sách coins có phân trang
 - GET /api/coins/<coin_id>: Chi tiết một coin
 - GET /api/coins/search: Tìm kiếm coins
-- GET /api/coins/<coin_id>/history: Lịch sử giá
+- GET /api/coins/<coin_id>/history: Lịch sử giá (DB-first, cache với TTL)
 """
 
+import json
+import logging
+from datetime import datetime, timezone, timedelta
+
 from flask import Blueprint, request, jsonify
-from app.models import Coin, PriceHistory
+from app.models import Coin, PriceHistory, ChartCache
+from app.models import db
 from app.services.coingecko import (
     fetch_top_coins,
     fetch_coin_detail,
     fetch_coin_history
 )
+
+logger = logging.getLogger(__name__)
 
 # Khởi tạo Blueprint
 coins_bp = Blueprint("coins", __name__)
@@ -22,6 +29,15 @@ coins_bp = Blueprint("coins", __name__)
 # Cấu hình phân trang
 COINS_PER_PAGE = 25
 INITIAL_PAGES_TO_FETCH = 4  # Số pages fetch ban đầu khi DB trống
+
+# TTL cache lịch sử giá theo số ngày (minutes)
+# WHY: Dữ liệu 1D thay đổi nhanh hơn, cần TTL ngắn hơn.
+_CACHE_TTL_MINUTES: dict[int, int] = {
+    1: 5,
+    7: 15,
+    30: 30,
+    90: 60,
+}
 
 
 @coins_bp.route("/", methods=["GET"])
@@ -156,6 +172,10 @@ def get_coin_history(coin_id: str):
     """
     Lấy lịch sử giá của một coin.
 
+    WHY: DB-first với TTL cache để tránh rate limit CoinGecko.
+         Mỗi period có TTL riêng; chỉ gọi API khi cache stale hoặc chưa có.
+         Nếu API fail → trả stale cache thay vì báo lỗi (graceful degradation).
+
     Args:
         coin_id: ID của coin
 
@@ -163,21 +183,39 @@ def get_coin_history(coin_id: str):
         - days (int): Số ngày, mặc định 7
 
     Returns:
-        HTTP 200: {'prices': [[timestamp, price], ...]}
+        HTTP 200: {'prices': [[timestamp_ms, price], ...]}
         HTTP 404: {'error': 'Không tìm thấy coin'}
     """
     days = request.args.get("days", 7, type=int)
 
-    # Kiểm tra coin tồn tại
+    # Kiểm tra coin tồn tại trong DB
     coin = Coin.query.get(coin_id)
     if not coin:
-        # Thử fetch từ API
         coin_data = fetch_coin_detail(coin_id)
         if not coin_data:
             return jsonify({"error": f"Không tìm thấy coin: {coin_id}"}), 404
         coin = _upsert_coin(coin_data)
 
-    # Gọi API lấy lịch sử giá
+    # --- DB-first: kiểm tra cache ---
+    cache_entry = ChartCache.query.filter_by(coin_id=coin_id, days=days).first()
+    ttl_minutes = _CACHE_TTL_MINUTES.get(days, 30)
+    now = datetime.now(timezone.utc)
+
+    if cache_entry:
+        # Đảm bảo cached_at có timezone info để so sánh
+        cached_at = cache_entry.cached_at
+        if cached_at.tzinfo is None:
+            cached_at = cached_at.replace(tzinfo=timezone.utc)
+
+        age_minutes = (now - cached_at).total_seconds() / 60
+        if age_minutes < ttl_minutes:
+            # Cache còn fresh → trả từ DB, không gọi API
+            logger.debug(f"[Cache HIT] {coin_id} {days}d (age {age_minutes:.1f}min)")
+            return jsonify({"prices": json.loads(cache_entry.prices_json)})
+
+        logger.debug(f"[Cache STALE] {coin_id} {days}d (age {age_minutes:.1f}min, TTL {ttl_minutes}min)")
+
+    # --- Cache miss/stale: gọi CoinGecko ---
     history_data = fetch_coin_history(coin_id, days)
 
     if history_data and history_data.get("prices"):
@@ -185,20 +223,51 @@ def get_coin_history(coin_id: str):
             [price[0], price[1]]  # [timestamp_ms, price]
             for price in history_data["prices"]
         ]
-    else:
-        # Fallback: Lấy từ DB
-        price_records = PriceHistory.query.filter(
-            PriceHistory.coin_id == coin_id
-        ).order_by(PriceHistory.timestamp.asc()).all()
-        prices = [
-            [
-                int(record.timestamp.timestamp() * 1000),
-                float(record.price)
-            ]
-            for record in price_records
-        ]
+        # Upsert cache
+        _upsert_chart_cache(coin_id, days, prices, now)
+        logger.debug(f"[Cache WRITE] {coin_id} {days}d ({len(prices)} points)")
+        return jsonify({"prices": prices})
 
-    return jsonify({"prices": prices})
+    # --- API fail: trả stale cache nếu có ---
+    if cache_entry:
+        logger.warning(f"[Cache FALLBACK] API fail, trả stale cache cho {coin_id} {days}d")
+        return jsonify({"prices": json.loads(cache_entry.prices_json)})
+
+    # Không có cache, không có API → trả empty
+    logger.error(f"[Cache MISS+API FAIL] Không có data cho {coin_id} {days}d")
+    return jsonify({"prices": []})
+
+
+def _upsert_chart_cache(coin_id: str, days: int, prices: list, now: datetime) -> None:
+    """
+    Upsert chart cache entry vào DB.
+
+    Args:
+        coin_id: ID của coin
+        days: Số ngày period
+        prices: List [[timestamp_ms, price], ...]
+        now: Thời điểm hiện tại (datetime với timezone)
+    """
+    try:
+        cache_entry = ChartCache.query.filter_by(coin_id=coin_id, days=days).first()
+        prices_json = json.dumps(prices)
+
+        if cache_entry:
+            cache_entry.prices_json = prices_json
+            cache_entry.cached_at = now
+        else:
+            cache_entry = ChartCache(
+                coin_id=coin_id,
+                days=days,
+                prices_json=prices_json,
+                cached_at=now,
+            )
+            db.session.add(cache_entry)
+
+        db.session.commit()
+    except Exception as e:
+        logger.error(f"Lỗi khi upsert chart cache {coin_id} {days}d: {e}")
+        db.session.rollback()
 
 
 def _upsert_coin(coin_data: dict) -> Coin:
@@ -262,8 +331,7 @@ def _upsert_coin(coin_data: dict) -> Coin:
             atl_date=market_data.get("atl_date", {}).get("usd")
         )
 
-    # Import db từ models package
-    from app.models import db
+    # Import db từ models package — đã import ở đầu file
     db.session.add(coin)
     db.session.commit()
 

@@ -214,6 +214,7 @@
  * Mỗi form có isLoading, error, success riêng để tránh UI lẫn lộn.
  */
 import { ref, h } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
@@ -248,7 +249,8 @@ const TrashIcon = {
 
 const router = useRouter()
 const authStore = useAuthStore()
-const { user } = authStore
+// storeToRefs giữ nguyên reactivity của user ref từ Pinia store
+const { user } = storeToRefs(authStore)
 
 // ── Section 1: Đổi mật khẩu ──────────────────────────────────
 const changePasswordForm = ref({ current: '', newPass: '', confirm: '' })

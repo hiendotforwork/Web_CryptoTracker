@@ -61,8 +61,8 @@
         >
           ×
         </button>
-        <span v-else-if="addedCoins.includes(coin.id)" class="added-badge" aria-label="Đã thêm">
-          ✓
+        <span v-else-if="addedCoins.includes(coin.id)" class="added-badge" aria-label="Đã thêm vào watchlist">
+          ★
         </span>
       </span>
     </div>
