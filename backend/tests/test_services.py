@@ -180,7 +180,7 @@ class TestFetchAndSaveCoins:
                 "atl_date": "2013-07-05T00:00:00.000Z"
             }
         ]
-        from app.models import Coin, PriceHistory
+        from app.models import Coin
         with app.app_context():
             count = fetch_and_save_coins()
             assert count == 1
@@ -188,10 +188,6 @@ class TestFetchAndSaveCoins:
             coin = Coin.query.get("bitcoin")
             assert coin is not None
             assert coin.current_price == 50000
-            
-            history = PriceHistory.query.filter_by(coin_id="bitcoin").first()
-            assert history is not None
-            assert history.price == 50000
 
     @patch("app.services.coingecko.fetch_top_coins")
     def test_fetch_and_save_empty(self, mock_fetch, app):

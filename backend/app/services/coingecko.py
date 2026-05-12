@@ -18,7 +18,7 @@ from typing import Optional
 
 import requests
 
-from app.models import db, Coin, PriceHistory
+from app.models import db, Coin
 
 # Cấu hình
 COINGECKO_API_URL = "https://api.coingecko.com/api/v3"
@@ -177,7 +177,6 @@ def fetch_and_save_coins() -> int:
     
     Gọi API fetch_top_coins từ service coingecko.
     Lưu/cập nhật thông tin từng coin vào bảng coins.
-    Lưu giá hiện tại vào bảng price_history.
     Commit một lần sau vòng lặp.
     
     Returns:
@@ -229,15 +228,6 @@ def fetch_and_save_coins() -> int:
             coin.atl_date = _parse_date(item.get("atl_date"))
             
             coin.last_updated = datetime.now(timezone.utc)
-
-            # Tạo record PriceHistory nếu có current_price
-            if coin.current_price is not None:
-                history = PriceHistory(
-                    coin_id=coin.id,
-                    price=coin.current_price,
-                    timestamp=datetime.now(timezone.utc)
-                )
-                db.session.add(history)
 
             new_count += 1
 

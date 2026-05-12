@@ -60,12 +60,6 @@ class Coin(db.Model):
 
     # Relationships
     watchlist_items = db.relationship("Watchlist", back_populates="coin", lazy="dynamic")
-    price_history = db.relationship(
-        "PriceHistory",
-        back_populates="coin",
-        cascade="all, delete-orphan",
-        lazy="dynamic"
-    )
 
     def to_dict(self) -> dict:
         """

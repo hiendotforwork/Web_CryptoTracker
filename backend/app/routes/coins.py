@@ -13,7 +13,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 
 from flask import Blueprint, request, jsonify
-from app.models import Coin, PriceHistory, ChartCache
+from app.models import Coin, ChartCache
 from app.models import db
 from app.services.coingecko import (
     fetch_top_coins,

@@ -40,7 +40,7 @@ try:
         inspector = inspect(db.engine)
         tables = inspector.get_table_names()
         
-        expected_tables = ["users", "coins", "watchlist", "news", "price_history"]
+        expected_tables = ["users", "coins", "watchlist", "news", "chart_cache"]
         print(f"\nDanh sách các bảng hiện có: {tables}")
         
         missing_tables = [t for t in expected_tables if t not in tables]

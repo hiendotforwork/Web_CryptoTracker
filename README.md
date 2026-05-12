@@ -104,15 +104,6 @@ Dự án xây dựng hệ thống theo dõi thị trường tiền điện tử,
 | coin_id    | varchar      | FK(coins) |
 | added_at   | timestamp    |           |
 
-### Bảng price_history
-
-| Tên trường | Kiểu dữ liệu  | Ràng buộc |
-| ---------- | ------------- | --------- |
-| id         | integer       | PK        |
-| coin_id    | varchar       | FK(coins) |
-| price      | numeric(20,8) | NOT NULL  |
-| timestamp  | timestamp     |           |
-
 ### Bảng chart_cache
 
 Cache lịch sử giá theo từng period, dùng DB-first để tránh rate limit CoinGecko.
@@ -189,7 +180,6 @@ Web_CryptoTracker/
 │   │   │   ├── coin.py          # Model Coin
 │   │   │   ├── news.py          # Model News
 │   │   │   ├── watchlist.py     # Model Watchlist
-│   │   │   ├── price_history.py # Model PriceHistory (snapshot mỗi 30 phút)
 │   │   │   └── chart_cache.py   # Model ChartCache (cache biểu đồ TTL per period)
 │   │   ├── routes/
 │   │   │   ├── auth.py          # /api/auth/* (register, login, profile)
@@ -278,7 +268,7 @@ Web_CryptoTracker/
                     │                           │
         ┌───────────▼───────────────────────────▼───────────┐
         │                  PostgreSQL                       │
-        │  users, coins, price_history, news, watchlist     │
+        │  users, coins, news, watchlist, chart_cache       │
         │  chart_cache (DB-first cache cho biểu đồ)         │
         └───────────────────────────────────────────────────┘
 
